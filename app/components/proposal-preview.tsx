@@ -21,10 +21,10 @@ const formatDate = (date: string) =>
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
 
-function PageFooter({ page }: { page: number }) {
+function PageFooter({ page, dark = false }: { page: number; dark?: boolean }) {
   return (
-    <footer className="mt-auto flex items-center justify-between border-t border-stone-300 pt-4 text-[9px] uppercase tracking-[0.18em] text-stone-400">
-      <span>Cosmos Black Sea · KP Builder</span>
+    <footer className={`mt-auto flex items-center justify-between border-t pt-4 text-[9px] uppercase tracking-[0.24em] ${dark ? "border-white/15 text-stone-500" : "border-stone-300 text-stone-400"}`}>
+      <span>Cosmos Black Sea</span>
       <span>{page} / 3</span>
     </footer>
   );
@@ -118,43 +118,45 @@ export function ProposalPreview() {
             </div>
 
             <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
-              <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f5f1e9] p-10 text-[#1c1915] shadow-2xl sm:p-14">
-                <header className="flex items-start justify-between border-b border-stone-300 pb-7">
+              <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+                <header className="border-b border-[#cec5b6] pb-6">
                   <div>
-                    <p className="text-[11px] font-semibold tracking-[0.28em]">COSMOS BLACK SEA</p>
-                    <h1 className="mt-4 font-serif text-4xl leading-none">Коммерческое предложение</h1>
+                    <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
+                    <h1 className="mt-4 max-w-[520px] font-serif text-[42px] leading-none">Коммерческое предложение</h1>
                   </div>
-                  <p className="text-right text-[9px] uppercase tracking-[0.18em] text-stone-500">Гостиничный номер<br />у Чёрного моря</p>
                 </header>
 
-                <div className="mt-8 grid grid-cols-[0.7fr_1.3fr] gap-8">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-stone-500">Выбранный объект</p>
-                    <p className="mt-3 font-serif text-6xl">№ {room.roomNumber.replace(/^№/, "")}</p>
-                    <dl className="mt-8 divide-y divide-stone-300 border-y border-stone-300">
+                <div className="mt-7 grid grid-cols-[0.72fr_1.28fr] gap-7">
+                  <div className="flex flex-col">
+                    <p className="text-[8px] uppercase tracking-[0.24em] text-stone-500">Ваш номер в Cosmos Black Sea</p>
+                    <p className="mt-3 font-serif text-[64px] leading-none">№ {room.roomNumber.replace(/^№/, "")}</p>
+                    <dl className="mt-6 grid grid-cols-2 gap-x-4 border-y border-[#cec5b6] py-3">
                       {[
                         ["Этаж", `${room.floor}`],
                         ["Площадь", `${room.area.toLocaleString("ru-RU")} м²`],
                         ["Цена за м²", formatCurrency(room.pricePerSqm)],
-                        ["Полная стоимость", formatCurrency(room.price)],
                       ].map(([label, value]) => (
-                        <div key={label} className="py-3">
-                          <dt className="text-[9px] text-stone-500">{label}</dt>
-                          <dd className="mt-1 text-sm font-medium">{value}</dd>
+                        <div key={label} className={label === "Цена за м²" ? "col-span-2 border-t border-[#ddd5c9] pt-3" : "pb-3"}>
+                          <dt className="text-[8px] uppercase tracking-[0.14em] text-stone-500">{label}</dt>
+                          <dd className="mt-1 text-[13px] font-medium">{value}</dd>
                         </div>
                       ))}
                     </dl>
+                    <div className="mt-auto border-l-2 border-[#aa8551] bg-[#e9dfcf] px-4 py-4">
+                      <p className="text-[8px] uppercase tracking-[0.2em] text-[#7d6748]">Полная стоимость</p>
+                      <p className="mt-2 font-serif text-[27px] leading-none">{formatCurrency(room.price)}</p>
+                      <p className="mt-4 text-[8px] uppercase tracking-[0.16em] text-stone-500">Первоначальный взнос от</p>
+                      <p className="mt-1 text-sm font-semibold">{formatCurrency(installment.initialPayment)}</p>
+                    </div>
                   </div>
-                  <div className="relative min-h-80 overflow-hidden rounded-sm bg-stone-200">
+                  <div className="relative min-h-[360px] overflow-hidden rounded-sm bg-stone-200">
                     <img src={renderSet.imagePaths[0]} alt={`Рендер номера ${room.roomNumber}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-5 pb-4 pt-12 text-[8px] uppercase tracking-[0.2em] text-white/80">Интерьер номера · визуализация</div>
                   </div>
                 </div>
 
-                <div className="mt-8 flex min-h-96 flex-1 flex-col rounded-sm border border-stone-300 bg-white p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-stone-500">Планировка</p>
-                    <p className="text-[9px] text-stone-400">{layout.id}</p>
-                  </div>
+                <div className="relative mt-7 flex min-h-[390px] flex-1 flex-col overflow-hidden rounded-sm border border-[#d8d0c4] bg-[#faf8f4]">
+                  <p className="absolute left-4 top-4 z-10 text-[8px] uppercase tracking-[0.24em] text-[#7d6748]">Планировка номера</p>
                   <div className="relative flex-1">
                     <img src={layout.imagePath} alt={`Планировка номера ${room.roomNumber}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-contain" />
                   </div>
@@ -162,40 +164,57 @@ export function ProposalPreview() {
                 <PageFooter page={1} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#f5f1e9] p-10 text-[#1c1915] shadow-2xl sm:p-14">
-                <header className="border-b border-stone-300 pb-6">
-                  <p className="text-[10px] font-semibold tracking-[0.24em]">COSMOS BLACK SEA</p>
-                  <h2 className="mt-4 font-serif text-4xl">Условия покупки</h2>
+              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+                <header className="flex items-end justify-between border-b border-[#cec5b6] pb-5">
+                  <div>
+                    <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
+                    <h2 className="mt-3 font-serif text-[40px] leading-none">Условия покупки</h2>
+                  </div>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {room.area.toLocaleString("ru-RU")} м²</p>
                 </header>
 
-                <dl className="mt-7 grid grid-cols-2 gap-x-8 gap-y-0">
+                <dl className="mt-5 grid grid-cols-5 gap-2 border-y border-[#d8d0c4] py-3">
                   {[
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
                     ["Скидка", `${installment.discountPercent}%`],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
                     ["Первоначальный взнос", `${installment.initialPaymentPercent}%`],
-                    ["Первоначальный взнос, ₽", formatCurrency(installment.initialPayment)],
-                    ["Ежемесячный платёж", formatCurrency(installment.monthlyPayment)],
-                    ["Платежей первого периода", `${installment.firstPeriodPaymentCount}`],
-                    ["Контрольный довнос до 50%", formatCurrency(installment.topUpPayment)],
-                    ["11 платежей второго периода", formatCurrency(installment.secondPeriodPayments)],
-                    ["Финальный остаток", formatCurrency(installment.finalPayment)],
+                    ["Платежей до довноса", `${installment.firstPeriodPaymentCount}`],
                   ].map(([label, value]) => (
-                    <div key={label} className="border-b border-stone-300 py-3">
-                      <dt className="text-[9px] text-stone-500">{label}</dt>
-                      <dd className="mt-1 text-sm font-medium">{value}</dd>
+                    <div key={label} className="px-2 first:pl-0 last:pr-0">
+                      <dt className="text-[7px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</dt>
+                      <dd className="mt-1 text-[11px] font-medium">{value}</dd>
                     </div>
                   ))}
                 </dl>
 
-                <div className="mt-7">
-                  <div className="flex items-end justify-between border-b border-stone-400 pb-3">
-                    <h3 className="font-serif text-2xl">Календарь платежей</h3>
-                    <p className="text-[9px] uppercase tracking-[0.14em] text-stone-400">Дата · сумма</p>
+                <div className="mt-5 grid grid-cols-4 gap-2">
+                  {[
+                    ["01", "Первоначальный взнос", formatCurrency(installment.initialPayment), `${installment.initialPaymentPercent}% от стоимости`],
+                    ["02", "Ежемесячный платёж", formatCurrency(installment.monthlyPayment), `${installment.firstPeriodPaymentCount} платежей до 30.06.2027`],
+                    ["03", "Довнос до 50%", formatCurrency(installment.topUpPayment), "Довнос до 50% оплаты"],
+                    ["04", "Финальный остаток", formatCurrency(installment.finalPayment), `После 11 платежей на ${formatCurrency(installment.secondPeriodPayments)}`],
+                  ].map(([step, label, value, note], index) => (
+                    <div key={label} className={`min-h-[126px] border border-[#b59463] p-3 ${index === 0 || index === 2 ? "bg-[#e9dfcf]" : "bg-[#faf8f4]"}`}>
+                      <p className="text-[8px] tracking-[0.2em] text-[#9a7747]">{step}</p>
+                      <p className="mt-4 text-[8px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</p>
+                      <p className="mt-2 font-serif text-[20px] font-medium leading-none">{value}</p>
+                      <p className="mt-3 text-[7px] leading-3 text-stone-500">{note}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-end justify-between border-b border-[#9f9688] pb-2">
+                    <div>
+                      <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">Персональный график</p>
+                      <h3 className="mt-1 font-serif text-[25px] leading-none">Календарь платежей</h3>
+                    </div>
+                    <p className="text-[7px] uppercase tracking-[0.14em] text-stone-400">Дата · назначение · сумма</p>
                   </div>
-                  <ol className="mt-3 grid grid-cols-2 gap-x-7">
+                  <ol className="mt-2 grid grid-cols-2 gap-x-6">
                     {schedule.map((payment) => (
-                      <li key={payment.id} className={`flex items-center justify-between gap-3 border-b py-1.5 text-[9px] ${payment.type === "top-up" || payment.type === "final" ? "border-[#9a7747] bg-[#ece1cf] px-2 font-semibold" : "border-stone-200"}`}>
+                      <li key={payment.id} className={`flex items-center justify-between gap-2 border-b py-[5px] text-[7.5px] ${payment.type === "top-up" || payment.type === "final" ? "border-[#b59463] bg-[#e9dfcf] px-2 font-semibold" : "border-[#ddd6ca]"}`}>
                         <span className="min-w-0 truncate"><span className="mr-2 text-stone-400">{formatDate(payment.date)}</span>{payment.label}</span>
                         <span className="shrink-0">{formatCurrency(payment.amount)}</span>
                       </li>
@@ -205,26 +224,24 @@ export function ProposalPreview() {
                 <PageFooter page={2} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#171512] p-10 text-stone-100 shadow-2xl sm:p-14">
+              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#151310] p-10 text-stone-100 shadow-2xl sm:p-14">
                 <header className="flex items-end justify-between border-b border-white/15 pb-6">
                   <div>
-                    <p className="text-[10px] tracking-[0.24em] text-amber-100/70">COSMOS BLACK SEA</p>
-                    <h2 className="mt-4 font-serif text-4xl">Галерея номера</h2>
+                    <p className="text-[10px] tracking-[0.34em] text-[#c5a97e]">COSMOS BLACK SEA</p>
+                    <h2 className="mt-4 font-serif text-[42px] leading-none">Галерея номера</h2>
                   </div>
-                  <p className="text-[9px] uppercase tracking-[0.18em] text-stone-500">№ {room.roomNumber.replace(/^№/, "")} · {renderSet.title}</p>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {room.area.toLocaleString("ru-RU")} м²</p>
                 </header>
 
-                <div className="mt-8 grid flex-1 grid-cols-2 gap-3">
+                <div className="mt-7 grid flex-1 grid-cols-12 grid-rows-3 gap-2.5">
                   {galleryImages.map((imagePath, index) => (
-                    <div key={imagePath} className={`relative min-h-0 overflow-hidden rounded-sm bg-stone-800 ${galleryImages.length === 3 && index === 0 ? "col-span-2" : ""}`}>
+                    <div key={imagePath} className={`relative min-h-0 overflow-hidden rounded-sm bg-stone-800 ${galleryImages.length >= 6 ? (index === 0 || index === 3 ? "col-span-7" : index === 1 || index === 2 ? "col-span-5" : "col-span-6") : "col-span-6"}`}>
                       <img src={imagePath} alt={`Рендер номера ${room.roomNumber}, ${index + 1}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
-                      <span className="absolute bottom-3 left-3 rounded-full bg-black/50 px-2 py-1 text-[8px] tracking-wider backdrop-blur">{String(index + 1).padStart(2, "0")}</span>
+                      <span className="absolute bottom-3 left-3 border border-white/25 bg-black/35 px-2 py-1 text-[7px] tracking-[0.18em] text-white/80 backdrop-blur">{String(index + 1).padStart(2, "0")}</span>
                     </div>
                   ))}
                 </div>
-                <footer className="mt-7 flex items-center justify-between border-t border-white/15 pt-4 text-[9px] uppercase tracking-[0.18em] text-stone-500">
-                  <span>Cosmos Black Sea · KP Builder</span><span>3 / 3</span>
-                </footer>
+                <PageFooter page={3} dark />
               </article>
             </div>
           </div>
