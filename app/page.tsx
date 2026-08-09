@@ -32,7 +32,7 @@ export default function Home() {
           <div>
             <p className="mb-3 text-xs uppercase tracking-[0.28em] text-amber-200/70">Коммерческое предложение</p>
             <h1 className="max-w-3xl font-serif text-4xl leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Выберите номер для жизни и инвестиций у моря
+              Выберите номер
             </h1>
           </div>
           <p className="max-w-md text-sm leading-6 text-stone-400">
