@@ -6,11 +6,14 @@ import {
   ESCROW_CONTROL_DATE,
   getFirstPeriodPaymentDates,
 } from "../lib/build-payment-schedule";
+import { calculateDiscount } from "../lib/calculate-discount";
+import type { DiscountMode } from "../lib/calculate-discount";
 import { calculateInstallment } from "../lib/calculate-installment";
 import { useSelectedRoom } from "./selected-room-context";
 import { useProposalContext } from "./proposal-context";
 
 type PlanId = "15" | "20" | "25" | "50" | "custom";
+type DiscountOption = "0" | "1" | "2" | "3" | "custom";
 
 const plans: Array<{
   id: PlanId;
@@ -33,6 +36,8 @@ const currency = new Intl.NumberFormat("ru-RU", {
 });
 
 const formatCurrency = (value: number) => currency.format(value);
+const formatPercent = (value: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 }).format(value);
 
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("ru-RU", {
@@ -52,15 +57,30 @@ export function PurchaseOptions() {
   const room = useSelectedRoom();
   const { setProposalData } = useProposalContext();
   const [planId, setPlanId] = useState<PlanId>("15");
-  const [applyDiscount, setApplyDiscount] = useState(true);
+  const [discountOption, setDiscountOption] = useState<DiscountOption>("1");
+  const [discountOverridden, setDiscountOverridden] = useState(false);
+  const [customDiscountMode, setCustomDiscountMode] = useState<DiscountMode>("percent");
+  const [customDiscountAmount, setCustomDiscountAmount] = useState(
+    () => calculateDiscount(room.price, { mode: "percent", value: 1 }).discountAmount,
+  );
   const [customInitialPayment, setCustomInitialPayment] = useState(30);
   const [customMonthlyPayment, setCustomMonthlyPayment] = useState(100000);
   const [transactionDate, setTransactionDate] = useState(todayIso);
+
   const plan = plans.find((item) => item.id === planId) ?? plans[0];
   const isCustom = planId === "custom";
   const initialPaymentPercent = isCustom ? customInitialPayment : plan.initialPaymentPercent;
   const monthlyPayment = isCustom ? customMonthlyPayment : plan.monthlyPayment;
-  const discountPercent = applyDiscount && !isCustom ? plan.discountPercent : 0;
+  const customDiscount = useMemo(
+    () => calculateDiscount(room.price, { mode: "amount", value: customDiscountAmount }),
+    [room.price, customDiscountAmount],
+  );
+  const discount = useMemo(
+    () => discountOption === "custom"
+      ? { mode: "amount" as const, value: customDiscount.discountAmount }
+      : { mode: "percent" as const, value: Number(discountOption) },
+    [discountOption, customDiscount.discountAmount],
+  );
   const firstPeriodPaymentDates = useMemo(
     () => getFirstPeriodPaymentDates(transactionDate),
     [transactionDate],
@@ -72,14 +92,14 @@ export function PurchaseOptions() {
         price: room.price,
         initialPaymentPercent,
         monthlyPayment,
-        discountPercent,
+        discount,
         firstPeriodPaymentCount: firstPeriodPaymentDates.length,
       }),
     [
       room.price,
       initialPaymentPercent,
       monthlyPayment,
-      discountPercent,
+      discount,
       firstPeriodPaymentDates.length,
     ],
   );
@@ -90,6 +110,7 @@ export function PurchaseOptions() {
   );
 
   const summary = [
+    ["Скидка", `${formatPercent(result.discountPercent)}% · ${formatCurrency(result.discountAmount)}`],
     ["Стоимость после скидки", formatCurrency(result.discountedPrice)],
     ["ПВ", formatCurrency(result.initialPayment)],
     ["Платежей до 30.06.2027", `${result.firstPeriodPaymentCount}`],
@@ -102,6 +123,30 @@ export function PurchaseOptions() {
   useEffect(() => {
     setProposalData({ room, installment: result, schedule });
   }, [room, result, schedule, setProposalData]);
+
+  const selectPlan = (nextPlan: (typeof plans)[number]) => {
+    setPlanId(nextPlan.id);
+    if (!discountOverridden) {
+      setDiscountOption(String(nextPlan.discountPercent) as DiscountOption);
+    }
+  };
+
+  const selectDiscount = (option: DiscountOption) => {
+    if (option === "custom" && discountOption !== "custom") {
+      const currentDiscount = calculateDiscount(room.price, {
+        mode: "percent",
+        value: Number(discountOption),
+      });
+      setCustomDiscountAmount(currentDiscount.discountAmount);
+    }
+    setDiscountOption(option);
+    setDiscountOverridden(true);
+  };
+
+  const restoreStandardDiscount = () => {
+    setDiscountOption(String(plan.discountPercent) as DiscountOption);
+    setDiscountOverridden(false);
+  };
 
   return (
     <>
@@ -129,7 +174,7 @@ export function PurchaseOptions() {
                 type="button"
                 role="radio"
                 aria-checked={active}
-                onClick={() => setPlanId(item.id)}
+                onClick={() => selectPlan(item)}
                 className={`rounded-xl border px-3 py-3 text-sm transition ${
                   active
                     ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100"
@@ -170,21 +215,96 @@ export function PurchaseOptions() {
           </div>
         )}
 
-        <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 border-t border-white/10 pt-5">
-          <span>
-            <span className="block text-sm text-stone-200">Применить скидку</span>
-            <span className="mt-1 block text-xs text-stone-500">
-              {plan.discountPercent > 0 && !isCustom ? `${plan.discountPercent}% для выбранного ПВ` : "Автоскидка не предусмотрена"}
-            </span>
-          </span>
-          <input
-            type="checkbox"
-            checked={applyDiscount}
-            onChange={(event) => setApplyDiscount(event.target.checked)}
-            className="peer sr-only"
-          />
-          <span className="relative h-7 w-12 shrink-0 rounded-full bg-stone-700 transition peer-checked:bg-amber-200 after:absolute after:left-1 after:top-1 after:size-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-        </label>
+        <div className="mt-5 border-t border-white/10 pt-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-stone-200">Скидка</p>
+              <p className="mt-1 text-xs text-stone-500">
+                Стандарт для выбранного ПВ — {plan.discountPercent}%
+              </p>
+            </div>
+            {discountOverridden && (
+              <button type="button" onClick={restoreStandardDiscount} className="text-right text-[10px] leading-4 text-amber-100/70 hover:text-amber-100">
+                Вернуть стандартную
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-5 gap-2" role="radiogroup" aria-label="Размер скидки">
+            {([
+              ["0", "Без скидки"],
+              ["1", "1%"],
+              ["2", "2%"],
+              ["3", "3%"],
+              ["custom", "Custom"],
+            ] as Array<[DiscountOption, string]>).map(([option, label]) => {
+              const active = discountOption === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => selectDiscount(option)}
+                  className={`rounded-lg border px-2 py-2.5 text-[11px] transition ${active ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {discountOption === "custom" && (
+            <div className="mt-3 rounded-xl border border-white/10 bg-stone-950/30 p-4">
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Способ ввода скидки">
+                {(["percent", "amount"] as DiscountMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={customDiscountMode === mode}
+                    onClick={() => setCustomDiscountMode(mode)}
+                    className={`rounded-lg border px-3 py-2 text-xs transition ${customDiscountMode === mode ? "border-amber-200/60 text-amber-100" : "border-white/10 text-stone-500"}`}
+                  >
+                    {mode === "percent" ? "Проценты" : "Рубли"}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-3 block">
+                <span className="text-xs text-stone-500">{customDiscountMode === "percent" ? "Скидка, %" : "Скидка, ₽"}</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={customDiscountMode === "percent" ? 100 : room.price}
+                  step={customDiscountMode === "percent" ? 0.1 : 10000}
+                  value={customDiscountMode === "percent" ? Number(customDiscount.discountPercent.toFixed(4)) : customDiscount.discountAmount}
+                  onChange={(event) => {
+                    const value = Math.max(0, Number(event.target.value) || 0);
+                    const nextDiscount = calculateDiscount(room.price, {
+                      mode: customDiscountMode,
+                      value,
+                    });
+                    setCustomDiscountAmount(nextDiscount.discountAmount);
+                  }}
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+                />
+              </label>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-white/[0.03] p-3">
+                  <p className="text-stone-600">Эквивалент, %</p>
+                  <p className="mt-1 text-stone-200">{formatPercent(customDiscount.discountPercent)}%</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.03] p-3">
+                  <p className="text-stone-600">Сумма скидки</p>
+                  <p className="mt-1 text-stone-200">{formatCurrency(customDiscount.discountAmount)}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-[10px] text-stone-600">Цена после скидки: {formatCurrency(customDiscount.discountedPrice)}</p>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="panel p-6" aria-labelledby="calculation-heading">

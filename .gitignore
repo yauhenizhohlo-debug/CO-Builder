@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/tmp/
 
 # next.js
 /.next/
@@ -21,6 +22,9 @@
 # misc
 .DS_Store
 *.pem
+*.tsbuildinfo
+/output/
+/.pnpm-store/
 
 # debug
 npm-debug.log*

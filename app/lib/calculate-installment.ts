@@ -1,14 +1,18 @@
+import { calculateDiscount } from "./calculate-discount";
+import type { DiscountInput } from "./calculate-discount";
+
 export type InstallmentInput = {
   price: number;
   initialPaymentPercent: number;
   monthlyPayment: number;
-  discountPercent: number;
+  discount: DiscountInput;
   firstPeriodPaymentCount: number;
 };
 
 export type InstallmentResult = {
   listPrice: number;
   discountPercent: number;
+  discountAmount: number;
   discountedPrice: number;
   initialPaymentPercent: number;
   initialPayment: number;
@@ -27,10 +31,13 @@ export function calculateInstallment({
   price,
   initialPaymentPercent,
   monthlyPayment,
-  discountPercent,
+  discount,
   firstPeriodPaymentCount,
 }: InstallmentInput): InstallmentResult {
-  const discountedPrice = price * (1 - discountPercent / 100);
+  const { discountPercent, discountAmount, discountedPrice } = calculateDiscount(
+    price,
+    discount,
+  );
   const initialPayment = discountedPrice * (initialPaymentPercent / 100);
   const paymentsBeforeTopUp = monthlyPayment * firstPeriodPaymentCount;
   const targetEscrow = discountedPrice * 0.5;
@@ -47,6 +54,7 @@ export function calculateInstallment({
   return {
     listPrice: price,
     discountPercent,
+    discountAmount,
     discountedPrice,
     initialPaymentPercent,
     initialPayment,

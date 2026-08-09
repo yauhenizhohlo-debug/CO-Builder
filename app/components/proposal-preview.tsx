@@ -13,6 +13,8 @@ const currency = new Intl.NumberFormat("ru-RU", {
 });
 
 const formatCurrency = (value: number) => currency.format(value);
+const formatPercent = (value: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 }).format(value);
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -173,10 +175,11 @@ export function ProposalPreview() {
                   <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {room.area.toLocaleString("ru-RU")} м²</p>
                 </header>
 
-                <dl className="mt-5 grid grid-cols-5 gap-2 border-y border-[#d8d0c4] py-3">
+                <dl className="mt-5 grid grid-cols-6 gap-2 border-y border-[#d8d0c4] py-3">
                   {[
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
-                    ["Скидка", `${installment.discountPercent}%`],
+                    ["Скидка, %", `${formatPercent(installment.discountPercent)}%`],
+                    ["Скидка, ₽", formatCurrency(installment.discountAmount)],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
                     ["Первоначальный взнос", `${installment.initialPaymentPercent}%`],
                     ["Платежей до довноса", `${installment.firstPeriodPaymentCount}`],
