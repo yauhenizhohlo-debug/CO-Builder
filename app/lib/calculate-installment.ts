@@ -21,6 +21,7 @@ export type InstallmentResult = {
   paymentsBeforeTopUp: number;
   topUpPayment: number;
   targetEscrow: number;
+  secondPeriodPaymentCount: number;
   secondPeriodPayments: number;
   finalPayment: number;
 };
@@ -63,6 +64,7 @@ export function calculateInstallment({
     paymentsBeforeTopUp,
     topUpPayment,
     targetEscrow,
+    secondPeriodPaymentCount: SECOND_PERIOD_PAYMENT_COUNT,
     secondPeriodPayments,
     finalPayment,
   };

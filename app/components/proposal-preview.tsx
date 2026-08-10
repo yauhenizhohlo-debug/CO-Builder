@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
 import { useProposalContext } from "./proposal-context";
+import type { ProposalData } from "./proposal-context";
 
 const currency = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -32,8 +33,27 @@ function PageFooter({ page, dark = false }: { page: number; dark?: boolean }) {
   );
 }
 
-export function ProposalPreview() {
-  const { proposalData } = useProposalContext();
+function ProposalImage({ src, alt, className }: { src?: string; alt: string; className: string }) {
+  const [failed, setFailed] = useState(!src);
+
+  if (failed || !src) {
+    return (
+      <div className={`${className} grid place-items-center bg-stone-200 p-6 text-center text-[9px] uppercase tracking-[0.18em] text-stone-500`}>
+        Изображение временно недоступно
+      </div>
+    );
+  }
+
+  return <img src={src} alt={alt} loading="eager" decoding="sync" onError={() => setFailed(true)} className={className} />;
+}
+
+export function ProposalPreview({
+  importedProposalData,
+}: {
+  importedProposalData?: ProposalData;
+} = {}) {
+  const context = useProposalContext();
+  const proposalData = importedProposalData ?? context.proposalData;
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -100,7 +120,7 @@ export function ProposalPreview() {
         </button>
       </section>
 
-      {isOpen && proposalData && room && layout && renderSet && createPortal(
+      {isOpen && proposalData && room && createPortal(
         <div className="proposal-print-root">
           <div className="proposal-modal fixed inset-0 z-[70] overflow-y-auto bg-stone-950/95 backdrop-blur-sm">
             <div className="proposal-controls sticky top-0 z-20 border-b border-white/10 bg-stone-950/90 px-4 py-3 backdrop-blur">
@@ -153,7 +173,7 @@ export function ProposalPreview() {
                     </div>
                   </div>
                   <div className="relative min-h-[360px] overflow-hidden rounded-sm bg-stone-200">
-                    <img src={renderSet.imagePaths[0]} alt={`Рендер номера ${room.roomNumber}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
+                    <ProposalImage src={renderSet?.imagePaths[0]} alt={`Рендер номера ${room.roomNumber}`} className="absolute inset-0 h-full w-full object-cover" />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-5 pb-4 pt-12 text-[8px] uppercase tracking-[0.2em] text-white/80">Интерьер номера · визуализация</div>
                   </div>
                 </div>
@@ -161,7 +181,7 @@ export function ProposalPreview() {
                 <div className="relative mt-7 flex min-h-[390px] flex-1 flex-col overflow-hidden rounded-sm border border-[#d8d0c4] bg-[#faf8f4]">
                   <p className="absolute left-4 top-4 z-10 text-[8px] uppercase tracking-[0.24em] text-[#7d6748]">Планировка номера</p>
                   <div className="relative flex-1">
-                    <img src={layout.imagePath} alt={`Планировка номера ${room.roomNumber}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-contain" />
+                    <ProposalImage src={layout?.imagePath} alt={`Планировка номера ${room.roomNumber}`} className="absolute inset-0 h-full w-full object-contain" />
                   </div>
                 </div>
                 <PageFooter page={1} />
@@ -198,7 +218,7 @@ export function ProposalPreview() {
                     ["01", "Первоначальный взнос", formatCurrency(installment.initialPayment), `${installment.initialPaymentPercent}% от стоимости`],
                     ["02", "Ежемесячный платёж", formatCurrency(installment.monthlyPayment), `${installment.firstPeriodPaymentCount} платежей до 30.06.2027`],
                     ["03", "Довнос до 50%", formatCurrency(installment.topUpPayment), "Довнос до 50% оплаты"],
-                    ["04", "Финальный остаток", formatCurrency(installment.finalPayment), `После 11 платежей на ${formatCurrency(installment.secondPeriodPayments)}`],
+                    ["04", "Финальный остаток", formatCurrency(installment.finalPayment), `После ${installment.secondPeriodPaymentCount} платежей на ${formatCurrency(installment.secondPeriodPayments)}`],
                   ].map(([step, label, value, note], index) => (
                     <div key={label} className={`min-h-[126px] border border-[#b59463] p-3 ${index === 0 || index === 2 ? "bg-[#e9dfcf]" : "bg-[#faf8f4]"}`}>
                       <p className="text-[8px] tracking-[0.2em] text-[#9a7747]">{step}</p>
@@ -306,10 +326,15 @@ export function ProposalPreview() {
                 <div className="mt-7 grid flex-1 grid-cols-12 grid-rows-3 gap-2.5">
                   {galleryImages.map((imagePath, index) => (
                     <div key={imagePath} className={`relative min-h-0 overflow-hidden rounded-sm bg-stone-800 ${galleryImages.length >= 6 ? (index === 0 || index === 3 ? "col-span-7" : index === 1 || index === 2 ? "col-span-5" : "col-span-6") : "col-span-6"}`}>
-                      <img src={imagePath} alt={`Рендер номера ${room.roomNumber}, ${index + 1}`} loading="eager" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
+                      <ProposalImage src={imagePath} alt={`Рендер номера ${room.roomNumber}, ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />
                       <span className="absolute bottom-3 left-3 border border-white/25 bg-black/35 px-2 py-1 text-[7px] tracking-[0.18em] text-white/80 backdrop-blur">{String(index + 1).padStart(2, "0")}</span>
                     </div>
                   ))}
+                  {galleryImages.length === 0 && (
+                    <div className="col-span-12 row-span-3 grid place-items-center border border-white/10 text-[9px] uppercase tracking-[0.2em] text-stone-500">
+                      Рендеры номера временно недоступны
+                    </div>
+                  )}
                 </div>
                 <PageFooter page={3} dark />
               </article>

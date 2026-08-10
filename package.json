@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "build:contract": "tsc packages/proposal-contract/src/index.ts --target ES2022 --module ES2022 --moduleResolution bundler --outDir packages/proposal-contract/dist",
+    "prebuild": "npm run build:contract",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:mortgage": "node --experimental-strip-types --test app/lib/calculate-tranche-mortgage.test.ts"
+    "test:mortgage": "node --experimental-strip-types --test app/lib/calculate-tranche-mortgage.test.ts",
+    "test:integration": "node --experimental-strip-types --test app/lib/validate-imported-context.test.ts"
   },
   "dependencies": {
+    "@cosmos/proposal-contract": "file:packages/proposal-contract",
     "next": "16.1.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"
