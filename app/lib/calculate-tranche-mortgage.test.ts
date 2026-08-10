@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  calculateAnnuityPayment,
+  calculateStagePayment,
   calculateTrancheMortgage,
+  type MortgagePayment,
   type TrancheMortgageInput,
 } from "./calculate-tranche-mortgage.ts";
-
-const DOMCLICK_FIRST_PAYMENT = 64_901;
-const DOMCLICK_SECOND_PAYMENT = 227_970;
 
 const controlCase: TrancheMortgageInput = {
   price: 20_000_000,
@@ -21,120 +19,96 @@ const controlCase: TrancheMortgageInput = {
   ],
 };
 
-function impliedAnnualRate(principal: number, termMonths: number, payment: number) {
-  let lower = 0;
-  let upper = 100;
-
-  for (let index = 0; index < 100; index += 1) {
-    const middle = (lower + upper) / 2;
-    if (calculateAnnuityPayment(principal, middle, termMonths) < payment) lower = middle;
-    else upper = middle;
-  }
-
-  return (lower + upper) / 2;
-}
-
-function isLeapYear(year: number) {
-  return year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
-}
-
-function addMonths(source: Date, months: number) {
-  const year = source.getUTCFullYear();
-  const month = source.getUTCMonth() + months;
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(source.getUTCDate(), lastDay)));
-}
-
-function actualActualAnnuity(
-  principal: number,
-  annualRate: number,
-  startDate: string,
-  termMonths: number,
-) {
-  const start = new Date(`${startDate}T00:00:00Z`);
-  const factors: number[] = [];
-  let previous = start;
-
-  for (let month = 1; month <= termMonths; month += 1) {
-    const current = addMonths(start, month);
-    const days = (current.getTime() - previous.getTime()) / 86_400_000;
-    const daysInYear = isLeapYear(previous.getUTCFullYear()) ? 366 : 365;
-    factors.push(1 + annualRate / 100 * days / daysInYear);
-    previous = current;
-  }
-
-  const accumulatedPrincipal = factors.reduce(
-    (value, factor) => value * factor,
-    principal,
+function approximately(actual: number, expected: number, tolerance = 2) {
+  assert.ok(
+    Math.abs(Math.round(actual) - expected) <= tolerance,
+    `expected ${actual} to be within ${tolerance} ₽ of ${expected}`,
   );
-  const paymentAccumulator = factors.reduceRight(
-    (state, factor) => ({
-      futureFactor: state.futureFactor * factor,
-      denominator: state.denominator + state.futureFactor,
-    }),
-    { futureFactor: 1, denominator: 0 },
-  );
-
-  return accumulatedPrincipal / paymentAccumulator.denominator;
 }
 
-function interestOnlyPayment(
-  principal: number,
-  annualRate: number,
-  days: number,
-  daysInYear: number,
+function assertPayment(
+  actual: MortgagePayment,
+  expected: Partial<Record<keyof MortgagePayment, number>>,
 ) {
-  return principal * annualRate / 100 * days / daysInYear;
+  for (const [field, value] of Object.entries(expected)) {
+    approximately(actual[field as keyof MortgagePayment] as number, value);
+  }
 }
 
-test("control case uses the contractual annuity formula and remaining term", () => {
+test("stage payment is the unrounded 31-day interest on nominal issued credit", () => {
+  approximately(calculateStagePayment(3_980_000, 19.2), 64_901);
+  approximately(calculateStagePayment(13_980_000, 19.2), 227_969);
+});
+
+test("first Domclick stage uses Actual/365 and retains hidden kopecks", () => {
   const result = calculateTrancheMortgage(controlCase);
 
   assert.equal(result.isBalanced, true);
-  assert.equal(result.loanAmount, 13_980_000);
-  assert.equal(result.stages[0].remainingTermMonths, 360);
-  assert.equal(result.stages[0].paymentCount, 24);
-  assert.equal(result.stages[0].monthlyPayment, 63_890.72);
-  assert.equal(result.stages[1].remainingTermMonths, 336);
-  assert.equal(result.stages[1].monthlyPayment, 224_666.85);
+  assert.equal(result.schedule[0].date, "2026-08-15");
+  assertPayment(result.schedule[0], {
+    payment: 64_901,
+    interest: 64_901,
+    principal: 0,
+    remainingBalance: 3_980_000,
+  });
+  assertPayment(result.schedule[1], {
+    payment: 64_901,
+    interest: 64_901,
+    principal: 0,
+    remainingBalance: 3_980_000,
+  });
+  assertPayment(result.schedule[2], {
+    payment: 64_901,
+    interest: 62_807,
+    principal: 2_093,
+    remainingBalance: 3_977_906,
+  });
+  assertPayment(result.schedule[3], {
+    payment: 64_901,
+    interest: 64_867,
+    principal: 34,
+    remainingBalance: 3_977_872,
+  });
 });
 
-test("Domclick figures remain an explicit external benchmark, not a fitted constant", () => {
+test("a new tranche is added to the reduced balance and resets stage payment", () => {
   const result = calculateTrancheMortgage(controlCase);
-  const firstDifference = DOMCLICK_FIRST_PAYMENT - result.stages[0].monthlyPayment;
-  const secondDifference = DOMCLICK_SECOND_PAYMENT - result.stages[1].monthlyPayment;
+  const beforeSecondTranche = result.schedule[23].remainingBalance;
+  const firstSecondStagePayment = result.schedule[24];
 
-  assert.equal(Math.round(firstDifference * 100) / 100, 1_010.28);
-  assert.equal(Math.round(secondDifference * 100) / 100, 3_303.15);
-  assert.ok(Math.abs(impliedAnnualRate(3_980_000, 360, DOMCLICK_FIRST_PAYMENT) - 19.5092) < 0.0001);
-  assert.ok(Math.abs(impliedAnnualRate(result.stages[1].outstandingAfterIssue, 336, DOMCLICK_SECOND_PAYMENT) - 19.4895) < 0.0001);
+  assert.ok(beforeSecondTranche < 3_980_000);
+  approximately(result.stages[1].outstandingAfterIssue, beforeSecondTranche + 10_000_000);
+  assert.equal(result.stages[0].monthlyPayment, 64_901);
+  assert.equal(result.stages[1].monthlyPayment, 227_969);
+  assert.equal(firstSecondStagePayment.activeTranche, 2);
 });
 
-test("Domclick control figures reproduce as 31-day interest-only payments", () => {
-  const firstInterestOnlyPayment = interestOnlyPayment(3_980_000, 19.2, 31, 365);
-  const secondInterestOnlyPayment = interestOnlyPayment(13_980_000, 19.2, 31, 365);
-
-  assert.equal(Math.round(firstInterestOnlyPayment), DOMCLICK_FIRST_PAYMENT);
-  assert.equal(Math.round(secondInterestOnlyPayment), DOMCLICK_SECOND_PAYMENT);
-  assert.equal(Math.round(firstInterestOnlyPayment * 100) / 100, 64_901.26);
-  assert.equal(Math.round(secondInterestOnlyPayment * 100) / 100, 227_969.75);
+test("one, two and three tranches share the same schedule engine", () => {
+  for (const tranches of [
+    [{ id: "one", amount: 13_980_000, issueMonth: 0 }],
+    controlCase.tranches,
+    [
+      { id: "one", amount: 3_980_000, issueMonth: 0 },
+      { id: "two", amount: 5_000_000, issueMonth: 24 },
+      { id: "three", amount: 5_000_000, issueMonth: 48 },
+    ],
+  ]) {
+    const result = calculateTrancheMortgage({ ...controlCase, tranches });
+    assert.equal(result.stages.length, tranches.length);
+    assert.ok(result.schedule.length > 0);
+    assert.ok(result.schedule.length <= 360);
+    assert.ok(result.schedule.every((payment) => payment.principal >= 0));
+    assert.ok(result.schedule.every((payment) => payment.remainingBalance >= 0));
+  }
 });
 
-test("full original term and Actual/Actual day count do not reproduce Domclick", () => {
-  const result = calculateTrancheMortgage(controlCase);
-  const secondPaymentWithFullTerm = calculateAnnuityPayment(
-    result.stages[1].outstandingAfterIssue,
-    controlCase.annualRate,
-    360,
-  );
-  const dailyPayment = actualActualAnnuity(
-    controlCase.tranches[0].amount,
-    controlCase.annualRate,
-    controlCase.transactionDate,
-    360,
-  );
+test("published second-stage rows cannot be derived exactly from the supplied rounded balance", () => {
+  const suppliedOpeningBalance = 3_946_351 + 10_000_000;
+  const impliedDays = 226_792 * 365 / (suppliedOpeningBalance * 0.192);
 
-  assert.equal(secondPaymentWithFullTerm, 224_322.13);
-  assert.ok(Math.abs(dailyPayment - 63_898.34) < 0.01);
-  assert.ok(Math.abs(dailyPayment - DOMCLICK_FIRST_PAYMENT) > 1_000);
+  // An Actual/365 calendar period contains an integer number of days. This
+  // regression guard prevents hiding the unexplained bank adjustment in a
+  // fitted coefficient.
+  assert.ok(Math.abs(impliedDays - Math.round(impliedDays)) > 0.08);
+  assert.ok(Math.abs(impliedDays - 30.9143) < 0.0001);
 });

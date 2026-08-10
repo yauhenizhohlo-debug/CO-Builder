@@ -13,6 +13,15 @@ export type TrancheMortgageInput = {
   tranches: MortgageTrancheInput[];
 };
 
+export type MortgagePayment = {
+  date: string;
+  payment: number;
+  interest: number;
+  principal: number;
+  remainingBalance: number;
+  activeTranche: number;
+};
+
 export type MortgageStage = {
   trancheId: string;
   trancheNumber: number;
@@ -41,14 +50,23 @@ export type TrancheMortgageResult = {
   isBalanced: boolean;
   validationMessages: string[];
   stages: MortgageStage[];
+  schedule: MortgagePayment[];
+  remainingBalance: number;
   totalInterest: number;
   totalPayments: number;
 };
 
+const DAY_COUNT_BASIS = 365;
+const STAGE_PAYMENT_DAYS = 31;
+const MILLISECONDS_PER_DAY = 86_400_000;
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
+function parseIsoDate(dateString: string) {
+  return new Date(`${dateString}T00:00:00Z`);
+}
+
 export function addMonthsIso(dateString: string, months: number) {
-  const source = new Date(`${dateString}T00:00:00Z`);
+  const source = parseIsoDate(dateString);
   const targetYear = source.getUTCFullYear();
   const targetMonth = source.getUTCMonth() + months;
   const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
@@ -57,6 +75,28 @@ export function addMonthsIso(dateString: string, months: number) {
   return new Date(Date.UTC(targetYear, targetMonth, targetDay))
     .toISOString()
     .slice(0, 10);
+}
+
+function daysBetween(from: string, to: string) {
+  return Math.round(
+    (parseIsoDate(to).getTime() - parseIsoDate(from).getTime())
+      / MILLISECONDS_PER_DAY,
+  );
+}
+
+/**
+ * Contractual payment for a tranche stage observed in the Domclick schedule.
+ * It is the 31-day interest amount on all nominally issued tranches, not an
+ * annuity payment. Keep full precision: the bank schedule displays whole
+ * rubles while its balance arithmetic retains fractions of a ruble.
+ */
+export function calculateStagePayment(
+  issuedCreditAmount: number,
+  annualRate: number,
+) {
+  return Math.max(0, issuedCreditAmount)
+    * Math.max(0, annualRate) / 100
+    * STAGE_PAYMENT_DAYS / DAY_COUNT_BASIS;
 }
 
 export function calculateAnnuityPayment(
@@ -71,29 +111,6 @@ export function calculateAnnuityPayment(
   return roundMoney(
     principal * monthlyRate / (1 - Math.pow(1 + monthlyRate, -termMonths)),
   );
-}
-
-function applyPayments(
-  principal: number,
-  monthlyPayment: number,
-  annualRate: number,
-  paymentCount: number,
-  closeAtEnd = false,
-) {
-  const monthlyRate = Math.max(0, annualRate) / 100 / 12;
-  let balance = principal;
-  let paid = 0;
-
-  for (let index = 0; index < paymentCount && balance > 0; index += 1) {
-    const interest = balance * monthlyRate;
-    const actualPayment = closeAtEnd && index === paymentCount - 1
-      ? balance + interest
-      : Math.min(monthlyPayment, balance + interest);
-    balance = Math.max(0, balance + interest - actualPayment);
-    paid += actualPayment;
-  }
-
-  return { balance: roundMoney(balance), paid: roundMoney(paid) };
 }
 
 export function calculateTrancheMortgage({
@@ -139,31 +156,72 @@ export function calculateTrancheMortgage({
   }
 
   let outstanding = 0;
+  let issuedCreditAmount = 0;
+  let activeTranche = 0;
+  let stagePayment = 0;
   let totalLoanPayments = 0;
-  const stages: MortgageStage[] = [];
+  let totalInterest = 0;
+  const schedule: MortgagePayment[] = [];
+  const stageState = normalizedTranches.map(() => ({
+    outstandingAfterIssue: 0,
+    monthlyPayment: 0,
+  }));
 
-  normalizedTranches.forEach((tranche, index) => {
-    const remainingTermMonths = Math.max(1, safeTermMonths - tranche.issueMonth);
-    outstanding = roundMoney(outstanding + tranche.amount);
-    const monthlyPayment = calculateAnnuityPayment(
-      outstanding,
-      safeRate,
-      remainingTermMonths,
-    );
+  for (let month = 0; month < safeTermMonths; month += 1) {
+    while (
+      activeTranche < normalizedTranches.length
+      && normalizedTranches[activeTranche].issueMonth === month
+    ) {
+      const tranche = normalizedTranches[activeTranche];
+      outstanding += tranche.amount;
+      issuedCreditAmount += tranche.amount;
+      stagePayment = calculateStagePayment(issuedCreditAmount, safeRate);
+      stageState[activeTranche] = {
+        outstandingAfterIssue: outstanding,
+        monthlyPayment: stagePayment,
+      };
+      activeTranche += 1;
+    }
+
+    if (activeTranche === 0 || outstanding <= 0) continue;
+
+    const date = addMonthsIso(transactionDate, month);
+    // The public schedule contains an initial contractual row on the issue
+    // date. Its interest equals the 31-day stage payment. Later rows use the
+    // actual interval between monthly payment dates on an Actual/365 basis.
+    const daysInPeriod = month === 0
+      ? STAGE_PAYMENT_DAYS
+      : daysBetween(addMonthsIso(transactionDate, month - 1), date);
+    const calculatedInterest = outstanding * safeRate / 100
+      * daysInPeriod / DAY_COUNT_BASIS;
+    // Domclick's supplied rows show no capitalization when a long period's
+    // interest reaches the fixed stage payment. Unconfirmed negative
+    // amortization is therefore explicitly prevented.
+    const interest = Math.min(stagePayment, calculatedInterest);
+    const principal = Math.min(outstanding, Math.max(0, stagePayment - interest));
+    const payment = Math.min(stagePayment, outstanding + interest);
+
+    outstanding = Math.max(0, outstanding - principal);
+    totalLoanPayments += payment;
+    totalInterest += interest;
+    schedule.push({
+      date,
+      payment: roundMoney(payment),
+      interest: roundMoney(interest),
+      principal: roundMoney(principal),
+      remainingBalance: roundMoney(outstanding),
+      activeTranche,
+    });
+  }
+
+  const stages = normalizedTranches.map((tranche, index): MortgageStage => {
     const nextIssueMonth = normalizedTranches[index + 1]?.issueMonth ?? safeTermMonths;
-    const paymentCount = Math.max(
-      0,
-      Math.min(nextIssueMonth, safeTermMonths) - tranche.issueMonth,
-    );
-    const period = applyPayments(
-      outstanding,
-      monthlyPayment,
-      safeRate,
-      paymentCount,
-      index === normalizedTranches.length - 1,
+    const paymentCount = Math.max(0, nextIssueMonth - tranche.issueMonth);
+    const lastStagePayment = schedule.findLast(
+      (payment) => payment.activeTranche === index + 1,
     );
 
-    stages.push({
+    return {
       trancheId: tranche.id,
       trancheNumber: index + 1,
       trancheAmount: roundMoney(tranche.amount),
@@ -172,17 +230,15 @@ export function calculateTrancheMortgage({
       startPaymentMonth: tranche.issueMonth + 1,
       endPaymentMonth: tranche.issueMonth + paymentCount,
       paymentCount,
-      outstandingAfterIssue: outstanding,
-      remainingTermMonths,
-      monthlyPayment,
-      balanceBeforeNextTranche: period.balance,
-    });
-
-    outstanding = period.balance;
-    totalLoanPayments += period.paid;
+      outstandingAfterIssue: roundMoney(stageState[index].outstandingAfterIssue),
+      remainingTermMonths: Math.max(1, safeTermMonths - tranche.issueMonth),
+      // Client-facing fixed stage payment follows the bank schedule: kopecks
+      // are discarded, while the schedule itself keeps full precision.
+      monthlyPayment: Math.floor(stageState[index].monthlyPayment),
+      balanceBeforeNextTranche: lastStagePayment?.remainingBalance
+        ?? roundMoney(stageState[index].outstandingAfterIssue),
+    };
   });
-
-  const totalPayments = roundMoney(safeInitialPayment + totalLoanPayments);
 
   return {
     price: safePrice,
@@ -197,7 +253,9 @@ export function calculateTrancheMortgage({
     isBalanced: validationMessages.length === 0,
     validationMessages,
     stages,
-    totalInterest: roundMoney(Math.max(0, totalLoanPayments - loanAmount)),
-    totalPayments,
+    schedule,
+    remainingBalance: roundMoney(outstanding),
+    totalInterest: roundMoney(totalInterest),
+    totalPayments: roundMoney(safeInitialPayment + totalLoanPayments),
   };
 }
