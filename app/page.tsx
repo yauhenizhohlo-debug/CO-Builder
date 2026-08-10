@@ -3,8 +3,11 @@ import { RoomSelector } from "./components/room-selector";
 import { SelectedRoomProvider } from "./components/selected-room-context";
 import { ProposalProvider } from "./components/proposal-context";
 import { ProposalPreview } from "./components/proposal-preview";
+import { ImportedInventoryContext } from "./components/imported-inventory-context";
 
-export default function Home() {
+export default async function Home({searchParams}:{searchParams:Promise<{context?:string}>}) {
+  const contextId=(await searchParams).context;
+  if(contextId)return <ImportedInventoryContext contextId={contextId}/>;
   return (
     <SelectedRoomProvider>
       <ProposalProvider>
