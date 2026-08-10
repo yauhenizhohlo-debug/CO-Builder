@@ -5,12 +5,22 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { Room } from "../data/rooms";
 import type { PaymentScheduleItem } from "../lib/build-payment-schedule";
 import type { InstallmentResult } from "../lib/calculate-installment";
+import type { TrancheMortgageResult } from "../lib/calculate-tranche-mortgage";
 
-export type ProposalData = {
+export type InstallmentProposalData = {
   room: Room;
+  financingType: "installment";
   installment: InstallmentResult;
   schedule: PaymentScheduleItem[];
 };
+
+export type MortgageProposalData = {
+  room: Room;
+  financingType: "mortgage";
+  mortgage: TrancheMortgageResult;
+};
+
+export type ProposalData = InstallmentProposalData | MortgageProposalData;
 
 type ProposalContextValue = {
   proposalData: ProposalData | null;

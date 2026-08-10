@@ -11,6 +11,7 @@ import type { DiscountMode } from "../lib/calculate-discount";
 import { calculateInstallment } from "../lib/calculate-installment";
 import { useSelectedRoom } from "./selected-room-context";
 import { useProposalContext } from "./proposal-context";
+import { MortgageOptions } from "./mortgage-options";
 
 type PlanId = "15" | "20" | "25" | "50" | "custom";
 type DiscountOption = "0" | "1" | "2" | "3" | "custom";
@@ -53,7 +54,7 @@ const todayIso = () => {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 };
 
-export function PurchaseOptions() {
+function InstallmentOptions() {
   const room = useSelectedRoom();
   const { setProposalData } = useProposalContext();
   const [planId, setPlanId] = useState<PlanId>("15");
@@ -121,7 +122,7 @@ export function PurchaseOptions() {
   ];
 
   useEffect(() => {
-    setProposalData({ room, installment: result, schedule });
+    setProposalData({ room, financingType: "installment", installment: result, schedule });
   }, [room, result, schedule, setProposalData]);
 
   const selectPlan = (nextPlan: (typeof plans)[number]) => {
@@ -361,6 +362,36 @@ export function PurchaseOptions() {
           </ol>
         </div>
       </section>
+    </>
+  );
+}
+
+export function PurchaseOptions() {
+  const [financingType, setFinancingType] = useState<"installment" | "mortgage">("installment");
+
+  return (
+    <>
+      <section className="panel p-3" aria-label="Способ покупки">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Способ покупки">
+          {([
+            ["installment", "Рассрочка"],
+            ["mortgage", "Траншевая ипотека"],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={financingType === id}
+              onClick={() => setFinancingType(id)}
+              className={`min-h-12 rounded-xl border px-3 py-3 text-xs uppercase tracking-[0.08em] transition ${financingType === id ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {financingType === "installment" ? <InstallmentOptions /> : <MortgageOptions />}
     </>
   );
 }

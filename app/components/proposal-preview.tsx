@@ -53,8 +53,9 @@ export function ProposalPreview() {
   const room = proposalData?.room;
   const layout = room ? getLayoutById(room.layoutId) : undefined;
   const renderSet = room ? getRenderSetById(room.renderSetId) : undefined;
-  const installment = proposalData?.installment;
-  const schedule = proposalData?.schedule ?? [];
+  const installment = proposalData?.financingType === "installment" ? proposalData.installment : undefined;
+  const mortgage = proposalData?.financingType === "mortgage" ? proposalData.mortgage : undefined;
+  const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
 
   const handlePrint = async () => {
@@ -91,7 +92,7 @@ export function ProposalPreview() {
         </p>
         <button
           type="button"
-          disabled={!proposalData}
+          disabled={!proposalData || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
           onClick={() => setIsOpen(true)}
           className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -99,7 +100,7 @@ export function ProposalPreview() {
         </button>
       </section>
 
-      {isOpen && proposalData && room && layout && renderSet && installment && createPortal(
+      {isOpen && proposalData && room && layout && renderSet && createPortal(
         <div className="proposal-print-root">
           <div className="proposal-modal fixed inset-0 z-[70] overflow-y-auto bg-stone-950/95 backdrop-blur-sm">
             <div className="proposal-controls sticky top-0 z-20 border-b border-white/10 bg-stone-950/90 px-4 py-3 backdrop-blur">
@@ -148,7 +149,7 @@ export function ProposalPreview() {
                       <p className="text-[8px] uppercase tracking-[0.2em] text-[#7d6748]">Полная стоимость</p>
                       <p className="mt-2 font-serif text-[27px] leading-none">{formatCurrency(room.price)}</p>
                       <p className="mt-4 text-[8px] uppercase tracking-[0.16em] text-stone-500">Первоначальный взнос от</p>
-                      <p className="mt-1 text-sm font-semibold">{formatCurrency(installment.initialPayment)}</p>
+                      <p className="mt-1 text-sm font-semibold">{formatCurrency(installment?.initialPayment ?? mortgage?.initialPayment ?? 0)}</p>
                     </div>
                   </div>
                   <div className="relative min-h-[360px] overflow-hidden rounded-sm bg-stone-200">
@@ -175,6 +176,7 @@ export function ProposalPreview() {
                   <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {room.area.toLocaleString("ru-RU")} м²</p>
                 </header>
 
+                {installment ? <>
                 <dl className="mt-5 grid grid-cols-6 gap-2 border-y border-[#d8d0c4] py-3">
                   {[
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
@@ -224,6 +226,71 @@ export function ProposalPreview() {
                     ))}
                   </ol>
                 </div>
+                </> : mortgage ? <>
+                  <div className="mt-5 flex items-end justify-between border-y border-[#d8d0c4] py-4">
+                    <div>
+                      <p className="text-[8px] uppercase tracking-[0.18em] text-[#9a7747]">Финансовая траектория</p>
+                      <p className="mt-2 font-serif text-[25px]">Предварительный расчёт траншевой ипотеки</p>
+                    </div>
+                  </div>
+
+                  <dl className="mt-5 grid grid-cols-2 gap-2">
+                    {[
+                      ["Стоимость", formatCurrency(mortgage.price)],
+                      ["Первоначальный взнос", formatCurrency(mortgage.initialPayment)],
+                    ].map(([label, value], index) => (
+                      <div key={label} className={`min-h-[112px] border border-[#b59463] p-4 ${index === 1 ? "bg-[#e9dfcf]" : "bg-[#faf8f4]"}`}>
+                        <dt className="text-[8px] uppercase leading-3 tracking-[0.16em] text-stone-500">{label}</dt>
+                        <dd className="mt-4 font-serif text-[27px] leading-tight">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <dl className="mt-2 grid grid-cols-3 border border-[#d8d0c4] bg-[#faf8f4] px-4 py-3">
+                    {[
+                      ["Сумма кредита", formatCurrency(mortgage.loanAmount)],
+                      ["Ставка", `${formatPercent(mortgage.annualRate)}%`],
+                      ["Срок", `${formatPercent(mortgage.termYears)} лет`],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-[7px] uppercase tracking-[0.12em] text-stone-500">{label}</dt>
+                        <dd className="mt-1 text-[11px] font-medium">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="mt-7 flex-1">
+                    <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">График этапов</p>
+                    <ol className="mt-4">
+                      <li className="relative border-l border-[#b59463] pb-6 pl-7">
+                        <span className="absolute -left-[5px] top-0 size-[9px] rounded-full border border-[#9a7747] bg-[#f4f0e8]" />
+                        <p className="text-[8px] uppercase tracking-[0.16em] text-stone-500">Сегодня</p>
+                        <p className="mt-2 text-[9px] text-stone-500">Оплата в дату сделки</p>
+                        <p className="mt-1 font-serif text-[22px]">{formatCurrency(mortgage.initialPayment)}</p>
+                      </li>
+                      {mortgage.stages.map((stage, index) => (
+                        <li key={stage.trancheId} className={`relative pl-7 ${index < mortgage.stages.length - 1 ? "border-l border-[#b59463] pb-6" : ""}`}>
+                          <span className="absolute -left-[5px] top-0 size-[9px] rounded-full border border-[#9a7747] bg-[#f4f0e8]" />
+                          <div className="flex items-start justify-between gap-5">
+                            <div>
+                              <p className="text-[9px] uppercase tracking-[0.16em] text-stone-500">
+                                {stage.issueMonth === 0 ? `1–${stage.endPaymentMonth} месяц` : `С ${stage.startPaymentMonth} месяца`}
+                              </p>
+                            </div>
+                            <div className="min-w-[210px] border-l border-[#d5ccbf] pl-5">
+                              <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Ежемесячный платёж</p>
+                              <p className="mt-1 font-serif text-[22px]">{formatCurrency(stage.monthlyPayment)} / мес.</p>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  <div className="mt-7 border border-[#d0c5b5] bg-[#faf8f4] p-4">
+                    <p className="text-[7px] leading-4 text-stone-500">Предварительный расчёт траншевой ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.</p>
+                  </div>
+                </> : null}
                 <PageFooter page={2} />
               </article>
 
