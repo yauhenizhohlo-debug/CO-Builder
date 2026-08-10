@@ -78,6 +78,15 @@ function actualActualAnnuity(
   return accumulatedPrincipal / paymentAccumulator.denominator;
 }
 
+function interestOnlyPayment(
+  principal: number,
+  annualRate: number,
+  days: number,
+  daysInYear: number,
+) {
+  return principal * annualRate / 100 * days / daysInYear;
+}
+
 test("control case uses the contractual annuity formula and remaining term", () => {
   const result = calculateTrancheMortgage(controlCase);
 
@@ -99,6 +108,16 @@ test("Domclick figures remain an explicit external benchmark, not a fitted const
   assert.equal(Math.round(secondDifference * 100) / 100, 3_303.15);
   assert.ok(Math.abs(impliedAnnualRate(3_980_000, 360, DOMCLICK_FIRST_PAYMENT) - 19.5092) < 0.0001);
   assert.ok(Math.abs(impliedAnnualRate(result.stages[1].outstandingAfterIssue, 336, DOMCLICK_SECOND_PAYMENT) - 19.4895) < 0.0001);
+});
+
+test("Domclick control figures reproduce as 31-day interest-only payments", () => {
+  const firstInterestOnlyPayment = interestOnlyPayment(3_980_000, 19.2, 31, 365);
+  const secondInterestOnlyPayment = interestOnlyPayment(13_980_000, 19.2, 31, 365);
+
+  assert.equal(Math.round(firstInterestOnlyPayment), DOMCLICK_FIRST_PAYMENT);
+  assert.equal(Math.round(secondInterestOnlyPayment), DOMCLICK_SECOND_PAYMENT);
+  assert.equal(Math.round(firstInterestOnlyPayment * 100) / 100, 64_901.26);
+  assert.equal(Math.round(secondInterestOnlyPayment * 100) / 100, 227_969.75);
 });
 
 test("full original term and Actual/Actual day count do not reproduce Domclick", () => {
