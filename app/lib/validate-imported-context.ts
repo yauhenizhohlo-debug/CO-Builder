@@ -1,1 +1,17 @@
-export function validateImportedContext(value:any){if(!value?.data)throw new Error("INVALID_CONTEXT");if(value.data.schemaVersion!==1)throw new Error("UNSUPPORTED_CONTEXT_VERSION");if(!value.data.unitSnapshot?.unitNumber)throw new Error("INVALID_UNIT_SNAPSHOT");if(!value.data.payment?.result)throw new Error("INVALID_PAYMENT_SNAPSHOT");return value}export function warnings(v:any){return[...(v.liveCheck.priceChanged?["PRICE_CHANGED"]:[]),...(v.liveCheck.statusChanged?["STATUS_CHANGED"]:[])]}
+import {
+  parseProposalContextResponse,
+  type ProposalContextResponse,
+} from "@cosmos/proposal-contract";
+
+export type ImportedContextWarning = "PRICE_CHANGED" | "STATUS_CHANGED";
+
+export function validateImportedContext(value: unknown) {
+  return parseProposalContextResponse(value);
+}
+
+export function warnings(value: ProposalContextResponse): ImportedContextWarning[] {
+  const result: ImportedContextWarning[] = [];
+  if (value.liveCheck.priceChanged) result.push("PRICE_CHANGED");
+  if (value.liveCheck.statusChanged) result.push("STATUS_CHANGED");
+  return result;
+}

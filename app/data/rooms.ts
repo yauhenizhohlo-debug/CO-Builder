@@ -1,5 +1,5 @@
-import { getLayoutIdForRoom } from "./layouts";
-import { getRenderSetIdForRoom } from "./render-sets";
+import { getLayoutIdForRoom } from "./layouts.ts";
+import { getRenderSetIdForRoom } from "./render-sets.ts";
 
 export type Room = {
   roomNumber: string;

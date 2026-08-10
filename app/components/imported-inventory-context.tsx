@@ -1,3 +1,134 @@
-"use client";import{useEffect,useState}from"react";const money=new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}),rub=(v:number)=>money.format(v/100);type R={data:any;liveCheck:{priceChanged:boolean;statusChanged:boolean;currentStatus:string}};
-export function ImportedInventoryContext({contextId}:{contextId:string}){const[v,setV]=useState<R|null>(null),[error,setError]=useState(""),[open,setOpen]=useState(false);useEffect(()=>{fetch(`/api/inventory-context/${encodeURIComponent(contextId)}`).then(async r=>{if(!r.ok)throw new Error(r.status===404?"Расчёт не найден.":"Inventory временно недоступен.");return r.json()}).then(x=>{if(x.data?.schemaVersion!==1){console.error("builder_context_version_unsupported");throw new Error("Версия расчёта не поддерживается.")}setV(x)}).catch(e=>setError(e.message))},[contextId]);if(error)return <main className="min-h-screen bg-stone-950 p-10 text-white"><h1 className="font-serif text-4xl">Не удалось загрузить КП</h1><p>{error}</p><a href="/">Открыть Builder без context</a></main>;if(!v)return <main className="min-h-screen bg-stone-950 p-10 text-white">Загружаем расчёт из COSMOS Inventory…</main>;const d=v.data,u=d.unitSnapshot,p=d.payment.result,i=d.investment?.result;return <main className="min-h-screen bg-stone-950 p-6 text-white"><div className="mx-auto max-w-6xl"><div className="rounded-xl border border-emerald-300/30 p-4 text-emerald-100">Лот и расчёты загружены из COSMOS Inventory · №{u.unitNumber} · {u.area} м² · {money.format(u.price)}</div>{(v.liveCheck.priceChanged||v.liveCheck.statusChanged)&&<div className="mt-3 rounded-xl border border-amber-300/30 p-4 text-amber-100">{v.liveCheck.priceChanged&&<p>Цена лота изменилась. Используется историческая цена snapshot.</p>}{v.liveCheck.statusChanged&&<p>Текущий статус: {v.liveCheck.currentStatus}.</p>}</div>}<header className="py-10"><p className="eyebrow">Готовое коммерческое предложение</p><h1 className="mt-3 font-serif text-5xl">Номер {u.unitNumber}</h1><p className="mt-3 text-stone-400">{u.floor} этаж · {u.area} м² · {u.viewType}</p></header><div className="grid gap-5 md:grid-cols-3"><Card t="Лот" rows={[["Стоимость",money.format(u.price)],["Цена за м²",money.format(u.pricePerSqm)],["Статус",u.status]]}/><Card t="Покупка" rows={[["Режим",label(d.payment.mode)],["Первоначальный взнос",p.downPayment!==undefined?rub(p.downPayment):"—"],["Платежей / этапов",String(p.schedule?.length??p.stages?.length??"—")]]}/><Card t="Инвестиции" rows={[["Модель",d.investment?.model==="UNIT_ROOM"?"По номеру":"По доле в пуле"],["Доход · год 1",i?rub(i.firstYearNetOwnerIncome):"—"],["Доходность",i?`${Number(i.firstYearYieldPercent).toFixed(1)}%`:"—"],["Прогноз стоимости",i?rub(i.finalProjectedUnitValue):"—"]]}/></div><button onClick={()=>setOpen(true)} className="mt-7 rounded-xl bg-amber-100 px-6 py-4 text-stone-950">Открыть готовое КП</button>{open&&<div className="fixed inset-0 z-50 overflow-auto bg-black/90 p-4"><div className="mx-auto max-w-[850px]"><div className="no-print mb-4 flex gap-3"><button onClick={()=>window.print()} className="bg-amber-100 px-5 py-3 text-black">Сохранить PDF</button><button onClick={()=>setOpen(false)}>Закрыть</button></div><article className="proposal-page min-h-[1123px] bg-[#f4f0e8] p-14 text-[#191713]"><p>COSMOS BLACK SEA</p><h1 className="mt-12 font-serif text-6xl">Номер {u.unitNumber}</h1><p className="mt-5 text-xl">{u.floor} этаж · {u.area} м² · {u.viewType}</p><p className="mt-10 font-serif text-4xl">{money.format(u.price)}</p><h2 className="mt-14 font-serif text-3xl">Условия покупки</h2><p>{label(d.payment.mode)}</p><pre className="mt-4 whitespace-pre-wrap text-xs">{summary(p)}</pre><h2 className="mt-12 font-serif text-3xl">Инвестиционный прогноз</h2><p>Доход год 1: {i?rub(i.firstYearNetOwnerIncome):"—"}</p><p>Доходность: {i?`${Number(i.firstYearYieldPercent).toFixed(1)}%`:"—"}</p><p>Прогноз стоимости: {i?rub(i.finalProjectedUnitValue):"—"}</p></article></div></div>}</div></main>}
-function Card({t,rows}:{t:string;rows:string[][]}){return <section className="panel p-6"><p className="eyebrow">{t}</p><dl>{rows.map(([a,b])=><div key={a} className="flex justify-between gap-3 border-b border-white/10 py-3"><dt className="text-stone-500">{a}</dt><dd>{b}</dd></div>)}</dl></section>}const label=(v:string)=>v==="INSTALLMENT"?"Рассрочка":v==="TRANCHE_MORTGAGE"?"Траншевая ипотека":"Ипотека";function summary(p:any){if(p.schedule)return p.schedule.map((x:any)=>`${x.date} · ${rub(x.amount)} · ${x.label}`).join("\n");if(p.stages)return p.stages.map((x:any)=>`Этап ${x.trancheNumber}: ${rub(x.trancheAmount)} · ${rub(x.monthlyPayment)}/мес.`).join("\n");return `Ежемесячный платёж: ${rub(p.monthlyPayment)}`}
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { ProposalContextResponse } from "@cosmos/proposal-contract";
+import { mapImportedProposal } from "../lib/map-imported-proposal";
+import { formatMoney } from "../lib/proposal-money";
+import { validateImportedContext } from "../lib/validate-imported-context";
+import { ProposalProvider } from "./proposal-context";
+import { ProposalPreview } from "./proposal-preview";
+
+function paymentModeLabel(mode: ProposalContextResponse["data"]["payment"]["mode"]) {
+  if (mode === "INSTALLMENT") return "Рассрочка";
+  if (mode === "TRANCHE_MORTGAGE") return "Траншевая ипотека";
+  return "Ипотека";
+}
+
+function ImportedContextContent({ contextId }: { contextId: string }) {
+  const [value, setValue] = useState<ProposalContextResponse | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/inventory-context/${encodeURIComponent(contextId)}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(response.status === 404
+            ? "Расчёт не найден."
+            : "Inventory временно недоступен.");
+        }
+        return response.json() as Promise<unknown>;
+      })
+      .then((payload) => setValue(validateImportedContext(payload)))
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Не удалось загрузить расчёт.");
+      });
+    return () => controller.abort();
+  }, [contextId]);
+
+  const proposalData = useMemo(
+    () => value ? mapImportedProposal(value.data) : null,
+    [value],
+  );
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-stone-950 p-10 text-white">
+        <h1 className="font-serif text-4xl">Не удалось загрузить КП</h1>
+        <p className="mt-4 text-stone-400">{error}</p>
+        <a className="mt-6 inline-block text-amber-100" href="/">Открыть Builder без context</a>
+      </main>
+    );
+  }
+
+  if (!value || !proposalData) {
+    return <main className="min-h-screen bg-stone-950 p-10 text-white">Загружаем расчёт из COSMOS Inventory…</main>;
+  }
+
+  const { data, liveCheck } = value;
+  const unit = data.unitSnapshot;
+
+  return (
+    <main className="min-h-screen bg-stone-950 p-5 text-white lg:p-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="rounded-xl border border-emerald-300/30 p-4 text-sm text-emerald-100">
+          Лот и расчёты загружены из COSMOS Inventory · №{unit.unitNumber.replace(/^№/, "")} · {unit.area ?? "—"} м² · {formatMoney(unit.price)}
+        </div>
+
+        {(liveCheck.priceChanged || liveCheck.statusChanged) && (
+          <div className="mt-3 rounded-xl border border-amber-300/30 p-4 text-sm text-amber-100">
+            {liveCheck.priceChanged && <p>Цена лота изменилась. В КП используется зафиксированная snapshot-цена {formatMoney(unit.price)}.</p>}
+            {liveCheck.statusChanged && <p>Статус лота изменился: {liveCheck.currentStatus}. Условия КП сохранены на дату snapshot.</p>}
+          </div>
+        )}
+
+        <header className="py-10">
+          <p className="eyebrow">Готовое коммерческое предложение</p>
+          <h1 className="mt-3 font-serif text-5xl">Номер {unit.unitNumber.replace(/^№/, "")}</h1>
+          <p className="mt-3 text-stone-400">{unit.floor} этаж · {unit.area ?? "—"} м²{unit.viewType ? ` · ${unit.viewType}` : ""}</p>
+        </header>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <section className="panel p-6">
+            <p className="eyebrow">Snapshot объекта</p>
+            <dl className="mt-3">
+              {[
+                ["Стоимость", formatMoney(unit.price)],
+                ["Цена за м²", formatMoney(unit.pricePerSqm)],
+                ["Статус на дату snapshot", unit.status],
+              ].map(([label, content]) => (
+                <div key={label} className="flex justify-between gap-3 border-b border-white/10 py-3">
+                  <dt className="text-stone-500">{label}</dt>
+                  <dd>{content}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="panel p-6">
+            <p className="eyebrow">Snapshot условий</p>
+            <dl className="mt-3">
+              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+                <dt className="text-stone-500">Режим</dt>
+                <dd>{paymentModeLabel(data.payment.mode)}</dd>
+              </div>
+              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+                <dt className="text-stone-500">Версия расчёта</dt>
+                <dd>{data.paymentEngineVersion}</dd>
+              </div>
+              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+                <dt className="text-stone-500">Зафиксирован</dt>
+                <dd>{new Date(data.createdAt).toLocaleDateString("ru-RU")}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+
+        <div className="mt-5 max-w-sm">
+          <ProposalPreview importedProposalData={proposalData} />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function ImportedInventoryContext({ contextId }: { contextId: string }) {
+  return (
+    <ProposalProvider>
+      <ImportedContextContent contextId={contextId} />
+    </ProposalProvider>
+  );
+}
