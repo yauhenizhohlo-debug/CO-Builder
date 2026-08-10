@@ -106,7 +106,8 @@ export function MortgageOptions() {
       <section className="panel p-6" aria-labelledby="mortgage-heading">
         <p className="eyebrow">02 · Условия покупки</p>
         <h2 id="mortgage-heading" className="mt-3 font-serif text-2xl">Траншевая ипотека</h2>
-        <p className="mt-2 text-xs text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {formatCurrency(room.price)}</p>
+        <p className="mt-2 text-xs text-stone-500">Предварительный расчёт траншевой ипотеки</p>
+        <p className="mt-1 text-xs text-stone-600">Номер {room.roomNumber.replace(/^№/, "")} · {formatCurrency(room.price)}</p>
 
         <label className="mt-6 block">
           <span className="text-xs text-stone-500">Дата сделки</span>
@@ -118,7 +119,7 @@ export function MortgageOptions() {
           />
         </label>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="text-xs text-stone-500">Первоначальный взнос, ₽</span>
             <input
@@ -226,9 +227,11 @@ export function MortgageOptions() {
               <div key={tranche.id} className="rounded-xl border border-white/10 bg-stone-950/30 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-stone-200">Транш {index + 1}</p>
-                  <p className="text-[10px] text-stone-600">{formatDate(result.stages[index]?.issueDate ?? transactionDate)}</p>
+                  <p className="text-[10px] text-amber-100/65">
+                    {index === 0 ? "В дату сделки" : formatDate(result.stages[index]?.issueDate ?? transactionDate)}
+                  </p>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label>
                     <span className="text-[10px] text-stone-500">Сумма, ₽</span>
                     <input
@@ -238,11 +241,12 @@ export function MortgageOptions() {
                       step="10000"
                       value={tranche.amount}
                       onChange={(event) => updateTranche(index, "amount", Number(event.target.value) || 0)}
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none focus:border-amber-200/50"
+                      inputMode="numeric"
+                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-sm text-stone-100 outline-none focus:border-amber-200/50"
                     />
                   </label>
                   <label>
-                    <span className="text-[10px] text-stone-500">Выдача через, мес.</span>
+                    <span className="text-[10px] text-stone-500">Выдача через, месяцев</span>
                     <input
                       aria-label={`Срок выдачи транша ${index + 1}`}
                       type="number"
@@ -250,11 +254,18 @@ export function MortgageOptions() {
                       max={termYears * 12 - 1}
                       step="1"
                       value={tranche.issueMonth}
+                      disabled={index === 0}
                       onChange={(event) => updateTranche(index, "issueMonth", Number(event.target.value) || 0)}
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none focus:border-amber-200/50"
+                      inputMode="numeric"
+                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-sm text-stone-100 outline-none focus:border-amber-200/50 disabled:cursor-not-allowed disabled:text-stone-600"
                     />
                   </label>
                 </div>
+                <p className="mt-3 text-[10px] leading-4 text-stone-600">
+                  {index === 0
+                    ? `Выдача ${formatDate(transactionDate)}`
+                    : `Расчётная дата выдачи: ${formatDate(result.stages[index]?.issueDate ?? transactionDate)}`}
+                </p>
               </div>
             ))}
           </div>
@@ -271,7 +282,7 @@ export function MortgageOptions() {
 
       <section className="panel p-6" aria-labelledby="mortgage-calculation-heading">
         <p className="eyebrow">03 · Расчёт</p>
-        <h2 id="mortgage-calculation-heading" className="mt-3 font-serif text-2xl">Timeline финансирования</h2>
+        <h2 id="mortgage-calculation-heading" className="mt-3 font-serif text-2xl">Траектория финансирования</h2>
 
         <dl className="mt-6 grid grid-cols-2 gap-2">
           {[
@@ -280,7 +291,7 @@ export function MortgageOptions() {
             ["Сумма кредита", formatCurrency(result.loanAmount)],
             ["Ставка", `${formatPercent(result.annualRate)}%`],
             ["Срок", `${result.termYears} лет`],
-            ["Тип платежа", "Аннуитетный"],
+            ["Модель расчёта", "Траншевая · Actual/365"],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
               <dt className="text-[10px] leading-4 text-stone-500">{label}</dt>
@@ -302,7 +313,7 @@ export function MortgageOptions() {
               <p className="text-[10px] uppercase tracking-[0.16em] text-amber-100/70">
                 {stage.issueMonth === 0 ? "В дату сделки" : `С ${stage.startPaymentMonth} месяца`} · {formatDate(stage.issueDate)}
               </p>
-              <p className="mt-2 text-sm text-stone-200">Транш №{stage.trancheNumber} · {formatCurrency(stage.trancheAmount)}</p>
+                <p className="mt-2 text-sm text-stone-200">Этап {stage.trancheNumber} · транш {formatCurrency(stage.trancheAmount)}</p>
               <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] p-4">
                 <p className="text-[10px] text-stone-500">Задолженность после выдачи</p>
                 <p className="mt-1 text-sm text-stone-200">{formatCurrency(stage.outstandingAfterIssue)}</p>
@@ -317,7 +328,7 @@ export function MortgageOptions() {
         </ol>
 
         <p className="mt-7 text-[10px] leading-5 text-stone-600">
-          Расчёт является предварительным и носит информационный характер. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.
+          Предварительный расчёт траншевой ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.
         </p>
       </section>
     </>

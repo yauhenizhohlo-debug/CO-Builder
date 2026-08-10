@@ -383,7 +383,7 @@ export function PurchaseOptions() {
               role="radio"
               aria-checked={financingType === id}
               onClick={() => setFinancingType(id)}
-              className={`rounded-xl border px-3 py-3 text-xs uppercase tracking-[0.08em] transition ${financingType === id ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
+              className={`min-h-12 rounded-xl border px-3 py-3 text-xs uppercase tracking-[0.08em] transition ${financingType === id ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
             >
               {label}
             </button>
