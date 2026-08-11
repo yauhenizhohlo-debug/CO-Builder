@@ -2,13 +2,23 @@
 
 ## Request flow
 
-1. Inventory creates an immutable `ProposalContext` schema v1.
+1. Inventory creates an immutable `ProposalContext` schema v2. Builder keeps read compatibility with schema v1.
 2. Inventory opens Builder at `/?context=<uuid>`.
 3. Builder fetches its same-origin `/api/inventory-context/<uuid>` route.
-4. The server route reads `INVENTORY_API_URL`, proxies the trusted Inventory API, and validates the response with `@cosmos/proposal-contract` before returning it to the browser.
+4. The server route reads `INVENTORY_API_URL` and `PROPOSAL_BUILDER_TOKEN`, proxies the trusted Inventory API with bearer authentication, and validates the response with `@cosmos/proposal-contract` before returning it to the browser.
 5. Builder validates again at the client boundary, converts Money from kopecks in one mapping layer, resolves local assets by snapshot `unitNumber`, and passes the mapped snapshot to the existing premium three-page `ProposalPreview`.
 
 The context-free Builder route is unchanged. Wildcard CORS is not enabled.
+
+Schema v2 also carries `sourceApp` and `returnUrl`. Builder only renders the return link when its origin matches `NEXT_PUBLIC_INVENTORY_ORIGIN` and its path belongs to `/inventory/cosmos-black-sea/`.
+
+Production environment variables:
+
+```text
+INVENTORY_API_URL=https://cosmos-inventory.vercel.app
+NEXT_PUBLIC_INVENTORY_ORIGIN=https://cosmos-inventory.vercel.app
+PROPOSAL_BUILDER_TOKEN=<shared secret>
+```
 
 ## Snapshot and live data
 

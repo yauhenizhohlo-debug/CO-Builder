@@ -8,6 +8,7 @@ import type {
 import { mapImportedProposal } from "./map-imported-proposal.ts";
 import { formatMoney, moneyToRubles } from "./proposal-money.ts";
 import { validateImportedContext, warnings } from "./validate-imported-context.ts";
+import { safeInventoryReturnUrl } from "./inventory-return-url.ts";
 
 const money = (value: number) => value as Money;
 
@@ -146,8 +147,16 @@ test("runtime parser accepts the production contract", () => {
 test("runtime parser rejects malformed money and unsupported versions", () => {
   const invalidMoney: unknown = { ...baseResponse(), data: { ...baseResponse().data, unitSnapshot: { ...baseResponse().data.unitSnapshot, price: 22.9 } } };
   assert.throws(() => validateImportedContext(invalidMoney), /INVALID_PROPOSAL_CONTEXT/);
-  const invalidVersion: unknown = { ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 2 } };
+  const invalidVersion: unknown = { ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 3 } };
   assert.throws(() => validateImportedContext(invalidVersion), /UNSUPPORTED_PROPOSAL_CONTEXT_VERSION/);
+});
+
+test("schema v2 preserves a safe Inventory return link and rejects foreign source apps", () => {
+  const next: unknown = { ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 2, sourceApp: "COSMOS_INVENTORY", returnUrl: "http://localhost:3001/inventory/cosmos-black-sea/unit/CBS-B1-704" } };
+  assert.equal(validateImportedContext(next).data.returnUrl, "http://localhost:3001/inventory/cosmos-black-sea/unit/CBS-B1-704");
+  assert.equal(safeInventoryReturnUrl("http://localhost:3001/inventory/cosmos-black-sea/unit/CBS-B1-704"), "http://localhost:3001/inventory/cosmos-black-sea/unit/CBS-B1-704");
+  assert.equal(safeInventoryReturnUrl("https://evil.example/inventory/cosmos-black-sea/unit/CBS-B1-704"), null);
+  assert.throws(() => validateImportedContext({ ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 2, sourceApp: "EVIL", returnUrl: "http://localhost:3001/inventory/cosmos-black-sea/unit/CBS-B1-704" } }), /sourceApp/);
 });
 
 test("tranche mortgage snapshot maps without recalculation", () => {

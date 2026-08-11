@@ -1,4 +1,4 @@
-export const PROPOSAL_CONTEXT_SCHEMA_VERSION = 1;
+export const PROPOSAL_CONTEXT_SCHEMA_VERSION = 2;
 export const PAYMENT_ENGINE_VERSION = "1.0.0";
 export const INVESTMENT_ENGINE_VERSION = "1.0.0";
 const isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -53,7 +53,7 @@ export function parseProposalContextResponse(value) {
     const root = record(value, "root");
     const data = record(root.data, "data");
     const schemaVersion = integer(data.schemaVersion, "data.schemaVersion");
-    if (schemaVersion !== PROPOSAL_CONTEXT_SCHEMA_VERSION)
+    if (![1, PROPOSAL_CONTEXT_SCHEMA_VERSION].includes(schemaVersion))
         throw new Error("UNSUPPORTED_PROPOSAL_CONTEXT_VERSION");
     const unit = record(data.unitSnapshot, "data.unitSnapshot");
     const live = record(root.liveCheck, "liveCheck");

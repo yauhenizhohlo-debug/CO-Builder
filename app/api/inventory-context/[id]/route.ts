@@ -8,7 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const base = process.env.INVENTORY_API_URL;
-  if (!base) {
+  const token = process.env.PROPOSAL_BUILDER_TOKEN;
+  if (!base || !token) {
     console.error("inventory_api_unreachable");
     return NextResponse.json({ error: "INVENTORY_API_UNAVAILABLE" }, { status: 503 });
   }
@@ -17,7 +18,7 @@ export async function GET(
     const { id } = await params;
     const response = await fetch(
       `${base.replace(/\/$/, "")}/api/proposal-contexts/${encodeURIComponent(id)}`,
-      { cache: "no-store" },
+      { cache: "no-store", headers: { authorization: `Bearer ${token}` } },
     );
     if (!response.ok) {
       return new NextResponse(await response.text(), {

@@ -1,4 +1,4 @@
-export const PROPOSAL_CONTEXT_SCHEMA_VERSION = 1;
+export const PROPOSAL_CONTEXT_SCHEMA_VERSION = 2;
 export const PAYMENT_ENGINE_VERSION = "1.0.0";
 export const INVESTMENT_ENGINE_VERSION = "1.0.0";
 
@@ -95,9 +95,9 @@ export type ProposalPayment =
   | { mode: "TRANCHE_MORTGAGE"; inputs: Extract<ProposalPaymentInput, { mode: "TRANCHE_MORTGAGE" }>; result: ImportedTrancheMortgageResult }
   | { mode: "MORTGAGE"; inputs: Extract<ProposalPaymentInput, { mode: "MORTGAGE" }>; result: ImportedMortgageResult };
 
-export interface CreateProposalContextRequest { unitId: string; payment: ProposalPaymentInput; investment: ProposalInvestmentInput | null }
+export interface CreateProposalContextRequest { unitId: string; returnUrl?: string; payment: ProposalPaymentInput; investment: ProposalInvestmentInput | null }
 export interface UnitSnapshot { unitId: string; unitNumber: string; floor: number; area: number | null; price: Money; pricePerSqm: Money | null; status: string; viewType: string | null; capturedAt: string }
-export interface ProposalContext { id: string; projectId: string; unitId: string; unitSnapshot: UnitSnapshot; payment: ProposalPayment; investment: { model: ProposalInvestmentInput["model"]; scenario: string; inputs: ProposalInvestmentInput; result: unknown } | null; schemaVersion: number; paymentEngineVersion: string; investmentEngineVersion: string; createdAt: string; expiresAt: string | null }
+export interface ProposalContext { id: string; projectId: string; sourceApp?: "COSMOS_INVENTORY"; returnUrl?: string; unitId: string; unitSnapshot: UnitSnapshot; payment: ProposalPayment; investment: { model: ProposalInvestmentInput["model"]; scenario: string; inputs: ProposalInvestmentInput; result: unknown } | null; schemaVersion: number; paymentEngineVersion: string; investmentEngineVersion: string; createdAt: string; expiresAt: string | null }
 export interface ProposalContextResponse { data: ProposalContext; liveCheck: { priceChanged: boolean; statusChanged: boolean; currentPrice: Money | null; currentStatus: string } }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -148,7 +148,7 @@ export function parseProposalContextResponse(value: unknown): ProposalContextRes
   const root = record(value, "root");
   const data = record(root.data, "data");
   const schemaVersion = integer(data.schemaVersion, "data.schemaVersion");
-  if (schemaVersion !== PROPOSAL_CONTEXT_SCHEMA_VERSION) throw new Error("UNSUPPORTED_PROPOSAL_CONTEXT_VERSION");
+  if (![1, PROPOSAL_CONTEXT_SCHEMA_VERSION].includes(schemaVersion)) throw new Error("UNSUPPORTED_PROPOSAL_CONTEXT_VERSION");
   const unit = record(data.unitSnapshot, "data.unitSnapshot");
   const live = record(root.liveCheck, "liveCheck");
   const investmentValue = data.investment;

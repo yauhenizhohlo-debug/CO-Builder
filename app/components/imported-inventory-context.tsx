@@ -5,6 +5,7 @@ import type { ProposalContextResponse } from "@cosmos/proposal-contract";
 import { mapImportedProposal } from "../lib/map-imported-proposal";
 import { formatMoney } from "../lib/proposal-money";
 import { validateImportedContext } from "../lib/validate-imported-context";
+import { safeInventoryReturnUrl } from "../lib/inventory-return-url";
 import { ProposalProvider } from "./proposal-context";
 import { ProposalPreview } from "./proposal-preview";
 
@@ -60,10 +61,12 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
 
   const { data, liveCheck } = value;
   const unit = data.unitSnapshot;
+  const returnUrl = safeInventoryReturnUrl(data.returnUrl);
 
   return (
     <main className="min-h-screen bg-stone-950 p-5 text-white lg:p-10">
       <div className="mx-auto max-w-6xl">
+        {returnUrl && <a className="mb-5 inline-block text-sm text-amber-100 hover:text-white" href={returnUrl}>← Вернуться к лоту №{unit.unitNumber.replace(/^№/, "")}</a>}
         <div className="rounded-xl border border-emerald-300/30 p-4 text-sm text-emerald-100">
           Лот и расчёты загружены из COSMOS Inventory · №{unit.unitNumber.replace(/^№/, "")} · {unit.area ?? "—"} м² · {formatMoney(unit.price)}
         </div>
