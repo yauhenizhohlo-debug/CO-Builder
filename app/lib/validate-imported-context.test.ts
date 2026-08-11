@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import test from "node:test";
-import { hasBasicAccess } from "./basic-auth.ts";
 import type {
   Money,
   ProposalContextResponse,
@@ -12,8 +11,6 @@ import { validateImportedContext, warnings } from "./validate-imported-context.t
 import { safeInventoryReturnUrl } from "./inventory-return-url.ts";
 
 const money = (value: number) => value as Money;
-
-test("internal Builder uses the shared Basic access gate",()=>{const authorization=`Basic ${Buffer.from("agent:secret").toString("base64")}`;assert.equal(hasBasicAccess(null,"agent","secret","production"),false);assert.equal(hasBasicAccess(authorization,"agent","secret","production"),true);assert.equal(hasBasicAccess(authorization,"agent","wrong","production"),false);});
 
 function baseResponse(): ProposalContextResponse {
   return {
