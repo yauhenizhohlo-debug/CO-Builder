@@ -1,5 +1,5 @@
-import { parseProposalContextResponse } from "@cosmos/proposal-contract";
 import { NextResponse } from "next/server";
+import { validateImportedContext } from "../../../lib/validate-imported-context";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function GET(
         headers: { "content-type": "application/json" },
       });
     }
-    return NextResponse.json(parseProposalContextResponse(await response.json()));
+    return NextResponse.json(validateImportedContext(await response.json()));
   } catch (error) {
     if (error instanceof Error && (
       error.message.startsWith("INVALID_PROPOSAL_CONTEXT")
