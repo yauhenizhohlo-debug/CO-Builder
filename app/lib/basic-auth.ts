@@ -1,0 +1,3 @@
+import { timingSafeEqual } from "node:crypto";
+const equal=(left:string,right:string)=>{const a=Buffer.from(left),b=Buffer.from(right);return a.length===b.length&&timingSafeEqual(a,b)};
+export function hasBasicAccess(header:string|null,user:string|undefined,password:string|undefined,nodeEnv=process.env.NODE_ENV){if(!user||!password)return nodeEnv!=="production";if(!header?.startsWith("Basic "))return false;try{const decoded=Buffer.from(header.slice(6),"base64").toString("utf8"),separator=decoded.indexOf(":");return separator>=0&&equal(decoded.slice(0,separator),user)&&equal(decoded.slice(separator+1),password)}catch{return false}}
