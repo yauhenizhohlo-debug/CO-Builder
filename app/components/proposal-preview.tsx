@@ -197,51 +197,77 @@ export function ProposalPreview({
                 </header>
 
                 {installment ? <>
-                <dl className="mt-5 grid grid-cols-6 gap-2 border-y border-[#d8d0c4] py-3">
+                <dl className="mt-4 grid grid-cols-4 gap-3 border-y border-[#d8d0c4] py-3">
                   {[
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
-                    ["Скидка, %", `${formatPercent(installment.discountPercent)}%`],
-                    ["Скидка, ₽", formatCurrency(installment.discountAmount)],
+                    ["Скидка", `${formatPercent(installment.discountPercent)}% · ${formatCurrency(installment.discountAmount)}`],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
-                    ["Первоначальный взнос", `${installment.initialPaymentPercent}%`],
-                    ["Платежей до довноса", `${installment.firstPeriodPaymentCount}`],
+                    ["Условия", `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
                   ].map(([label, value]) => (
-                    <div key={label} className="px-2 first:pl-0 last:pr-0">
+                    <div key={label} className="border-l border-[#ddd5c9] pl-3 first:border-l-0 first:pl-0">
                       <dt className="text-[7px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</dt>
                       <dd className="mt-1 text-[11px] font-medium">{value}</dd>
                     </div>
                   ))}
                 </dl>
 
-                <div className="mt-5 grid grid-cols-4 gap-2">
+                <div className="mt-4 grid grid-cols-5 gap-1.5">
                   {[
                     ["01", "Первоначальный взнос", formatCurrency(installment.initialPayment), `${installment.initialPaymentPercent}% от стоимости`],
-                    ["02", "Ежемесячный платёж", formatCurrency(installment.monthlyPayment), `${installment.firstPeriodPaymentCount} платежей до 30.06.2027`],
-                    ["03", "Довнос до 50%", formatCurrency(installment.topUpPayment), "Довнос до 50% оплаты"],
-                    ["04", "Финальный остаток", formatCurrency(installment.finalPayment), `После ${installment.secondPeriodPaymentCount} платежей на ${formatCurrency(installment.secondPeriodPayments)}`],
+                    ["02", "До контрольной даты", `${installment.firstPeriodPaymentCount} × ${formatCurrency(installment.monthlyPayment)}`, `Всего ${formatCurrency(installment.paymentsBeforeTopUp)}`],
+                    ["03", "Довнос до 50%", formatCurrency(installment.topUpPayment), "30.06.2027"],
+                    ["04", "Второй период", `${installment.secondPeriodPaymentCount} × ${formatCurrency(installment.monthlyPayment)}`, `Всего ${formatCurrency(installment.secondPeriodPayments)}`],
+                    ["05", "Финальный платёж", formatCurrency(installment.finalPayment), "Завершение расчётов"],
                   ].map(([step, label, value, note], index) => (
-                    <div key={label} className={`min-h-[126px] border border-[#b59463] p-3 ${index === 0 || index === 2 ? "bg-[#e9dfcf]" : "bg-[#faf8f4]"}`}>
+                    <div key={label} className={`min-h-[98px] border p-2.5 ${index === 0 || index === 2 || index === 4 ? "border-[#b59463] bg-[#e9dfcf]" : "border-[#d8d0c4] bg-[#faf8f4]"}`}>
                       <p className="text-[8px] tracking-[0.2em] text-[#9a7747]">{step}</p>
-                      <p className="mt-4 text-[8px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</p>
-                      <p className="mt-2 font-serif text-[20px] font-medium leading-none">{value}</p>
-                      <p className="mt-3 text-[7px] leading-3 text-stone-500">{note}</p>
+                      <p className="mt-2 text-[7px] uppercase leading-[10px] tracking-[0.1em] text-stone-500">{label}</p>
+                      <p className="mt-2 font-serif text-[15px] font-medium leading-[17px]">{value}</p>
+                      <p className="mt-1.5 text-[6.5px] leading-[9px] text-stone-500">{note}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-3 border-y border-[#d8d0c4] bg-[#faf8f4] px-3 py-2.5">
+                  <p className="text-[6.5px] uppercase tracking-[0.18em] text-[#9a7747]">Траектория сделки</p>
+                  <ol className="mt-2 flex items-center justify-between gap-1 text-center">
+                    {[
+                      ["ПВ", formatCurrency(installment.initialPayment)],
+                      [`${installment.firstPeriodPaymentCount} платежей`, formatCurrency(installment.monthlyPayment)],
+                      ["Довнос до 50%", formatCurrency(installment.topUpPayment)],
+                      [`${installment.secondPeriodPaymentCount} платежей`, formatCurrency(installment.monthlyPayment)],
+                      ["Финальный платёж", formatCurrency(installment.finalPayment)],
+                    ].map(([label, value], index) => (
+                      <li key={label} className="contents">
+                        {index > 0 && <span aria-hidden="true" className="text-[11px] text-[#b59463]">→</span>}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[7px] font-semibold uppercase tracking-[0.08em] text-stone-600">{label}</p>
+                          <p className="mt-0.5 truncate text-[7px] text-stone-500">{value}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="mt-3 min-h-0 flex-1">
                   <div className="flex items-end justify-between border-b border-[#9f9688] pb-2">
                     <div>
                       <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">Персональный график</p>
-                      <h3 className="mt-1 font-serif text-[25px] leading-none">Календарь платежей</h3>
+                      <h3 className="mt-1 font-serif text-[23px] leading-none">Календарь платежей</h3>
                     </div>
-                    <p className="text-[7px] uppercase tracking-[0.14em] text-stone-400">Дата · назначение · сумма</p>
+                    <p className="text-[7px] text-stone-400">Все платежи в хронологическом порядке</p>
                   </div>
-                  <ol className="mt-2 grid grid-cols-2 gap-x-6">
+                  <div className="grid grid-cols-[76px_1fr_96px] border-b border-[#d8d0c4] py-1.5 text-[6.5px] uppercase tracking-[0.13em] text-stone-400">
+                    <span>Дата</span>
+                    <span>Назначение</span>
+                    <span className="text-right">Сумма</span>
+                  </div>
+                  <ol>
                     {schedule.map((payment) => (
-                      <li key={payment.id} className={`flex items-center justify-between gap-2 border-b py-[5px] text-[7.5px] ${payment.type === "top-up" || payment.type === "final" ? "border-[#b59463] bg-[#e9dfcf] px-2 font-semibold" : "border-[#ddd6ca]"}`}>
-                        <span className="min-w-0 truncate"><span className="mr-2 text-stone-400">{formatDate(payment.date)}</span>{payment.label}</span>
-                        <span className="shrink-0">{formatCurrency(payment.amount)}</span>
+                      <li key={payment.id} className={`grid grid-cols-[76px_1fr_96px] items-center border-b py-[2.5px] text-[7px] leading-[10px] ${payment.type === "initial" || payment.type === "top-up" || payment.type === "final" ? "border-[#b59463] bg-[#e9dfcf] px-2 font-semibold" : "border-[#ddd6ca]"}`}>
+                        <span className="text-stone-500">{formatDate(payment.date)}</span>
+                        <span className="min-w-0 truncate pr-2">{payment.label}</span>
+                        <span className="text-right">{formatCurrency(payment.amount)}</span>
                       </li>
                     ))}
                   </ol>
