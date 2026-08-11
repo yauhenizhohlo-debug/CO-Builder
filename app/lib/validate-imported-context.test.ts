@@ -28,8 +28,8 @@ function baseResponse(): ProposalContextResponse {
         unitNumber: "704",
         floor: 7,
         area: 38,
-        price: money(2_299_000_000),
-        pricePerSqm: money(60_500_000),
+        price: 22_990_000,
+        pricePerSqm: 605_000,
         status: "AVAILABLE",
         viewType: "Море",
         capturedAt: "2026-08-10T09:00:00.000Z",
@@ -97,7 +97,7 @@ function baseResponse(): ProposalContextResponse {
     liveCheck: {
       priceChanged: false,
       statusChanged: false,
-      currentPrice: money(2_299_000_000),
+      currentPrice: 22_990_000,
       currentStatus: "AVAILABLE",
     },
   };
@@ -191,7 +191,7 @@ test("live warnings stay separate from snapshot values", () => {
   value.liveCheck.currentStatus = "SOLD";
   const parsed = validateImportedContext(value);
   assert.deepEqual(warnings(parsed), ["PRICE_CHANGED", "STATUS_CHANGED"]);
-  assert.equal(parsed.data.unitSnapshot.price, money(2_299_000_000));
+  assert.equal(parsed.data.unitSnapshot.price, 22_990_000);
 });
 
 test("room 704 assets exist for the premium proposal", async () => {

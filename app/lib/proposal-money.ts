@@ -14,3 +14,7 @@ export function formatMoney(value: Money | null | undefined, fallback = "—") {
   const rubles = moneyToRubles(value);
   return rubles == null ? fallback : rubleFormatter.format(rubles);
 }
+
+export function formatRubles(value: number | null | undefined, fallback = "—") {
+  return value == null ? fallback : rubleFormatter.format(value);
+}

@@ -96,9 +96,9 @@ export type ProposalPayment =
   | { mode: "MORTGAGE"; inputs: Extract<ProposalPaymentInput, { mode: "MORTGAGE" }>; result: ImportedMortgageResult };
 
 export interface CreateProposalContextRequest { unitId: string; returnUrl?: string; payment: ProposalPaymentInput; investment: ProposalInvestmentInput | null }
-export interface UnitSnapshot { unitId: string; unitNumber: string; floor: number; area: number | null; price: Money; pricePerSqm: Money | null; status: string; viewType: string | null; capturedAt: string }
+export interface UnitSnapshot { unitId: string; unitNumber: string; floor: number; area: number | null; price: number; pricePerSqm: number | null; status: string; viewType: string | null; capturedAt: string }
 export interface ProposalContext { id: string; projectId: string; sourceApp?: "COSMOS_INVENTORY"; returnUrl?: string; unitId: string; unitSnapshot: UnitSnapshot; payment: ProposalPayment; investment: { model: ProposalInvestmentInput["model"]; scenario: string; inputs: ProposalInvestmentInput; result: unknown } | null; schemaVersion: number; paymentEngineVersion: string; investmentEngineVersion: string; createdAt: string; expiresAt: string | null }
-export interface ProposalContextResponse { data: ProposalContext; liveCheck: { priceChanged: boolean; statusChanged: boolean; currentPrice: Money | null; currentStatus: string } }
+export interface ProposalContextResponse { data: ProposalContext; liveCheck: { priceChanged: boolean; statusChanged: boolean; currentPrice: number | null; currentStatus: string } }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const fail = (path: string): never => { throw new Error(`INVALID_PROPOSAL_CONTEXT:${path}`); };

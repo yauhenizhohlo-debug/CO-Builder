@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProposalContextResponse } from "@cosmos/proposal-contract";
 import { mapImportedProposal } from "../lib/map-imported-proposal";
-import { formatMoney } from "../lib/proposal-money";
+import { formatRubles } from "../lib/proposal-money";
 import { validateImportedContext } from "../lib/validate-imported-context";
 import { safeInventoryReturnUrl } from "../lib/inventory-return-url";
 import { ProposalProvider } from "./proposal-context";
@@ -68,12 +68,12 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
       <div className="mx-auto max-w-6xl">
         {returnUrl && <a className="mb-5 inline-block text-sm text-amber-100 hover:text-white" href={returnUrl}>← Вернуться к лоту №{unit.unitNumber.replace(/^№/, "")}</a>}
         <div className="rounded-xl border border-emerald-300/30 p-4 text-sm text-emerald-100">
-          Лот и расчёты загружены из COSMOS Inventory · №{unit.unitNumber.replace(/^№/, "")} · {unit.area ?? "—"} м² · {formatMoney(unit.price)}
+          Лот и расчёты загружены из COSMOS Inventory · №{unit.unitNumber.replace(/^№/, "")} · {unit.area ?? "—"} м² · {formatRubles(unit.price)}
         </div>
 
         {(liveCheck.priceChanged || liveCheck.statusChanged) && (
           <div className="mt-3 rounded-xl border border-amber-300/30 p-4 text-sm text-amber-100">
-            {liveCheck.priceChanged && <p>Цена лота изменилась. В КП используется зафиксированная snapshot-цена {formatMoney(unit.price)}.</p>}
+            {liveCheck.priceChanged && <p>Цена лота изменилась. В КП используется зафиксированная snapshot-цена {formatRubles(unit.price)}.</p>}
             {liveCheck.statusChanged && <p>Статус лота изменился: {liveCheck.currentStatus}. Условия КП сохранены на дату snapshot.</p>}
           </div>
         )}
@@ -89,8 +89,8 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
             <p className="eyebrow">Snapshot объекта</p>
             <dl className="mt-3">
               {[
-                ["Стоимость", formatMoney(unit.price)],
-                ["Цена за м²", formatMoney(unit.pricePerSqm)],
+                ["Стоимость", formatRubles(unit.price)],
+                ["Цена за м²", formatRubles(unit.pricePerSqm)],
                 ["Статус на дату snapshot", unit.status],
               ].map(([label, content]) => (
                 <div key={label} className="flex justify-between gap-3 border-b border-white/10 py-3">

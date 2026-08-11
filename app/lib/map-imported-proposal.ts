@@ -30,8 +30,8 @@ export function resolveSnapshotRoom(context: ProposalContext): Room {
     roomNumber: snapshot.unitNumber,
     floor: snapshot.floor,
     area: snapshot.area ?? 0,
-    price: rubles(snapshot.price),
-    pricePerSqm: rubles(snapshot.pricePerSqm),
+    price: snapshot.price,
+    pricePerSqm: snapshot.pricePerSqm ?? 0,
     layoutId: assets?.layoutId ?? "",
     renderSetId: assets?.renderSetId ?? "",
   };

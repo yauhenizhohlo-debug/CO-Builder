@@ -3,8 +3,8 @@ const unitSnapshot = {
   unitNumber: "704",
   floor: 7,
   area: 38,
-  price: 2_299_000_000,
-  pricePerSqm: 60_500_000,
+  price: 22_990_000,
+  pricePerSqm: 605_000,
   status: "AVAILABLE",
   viewType: "Море",
   capturedAt: "2026-08-10T09:00:00.000Z",
@@ -86,5 +86,5 @@ export const installmentContext = {
       },
     },
   },
-  liveCheck: { priceChanged: false, statusChanged: false, currentPrice: 2_299_000_000, currentStatus: "AVAILABLE" },
+  liveCheck: { priceChanged: false, statusChanged: false, currentPrice: 22_990_000, currentStatus: "AVAILABLE" },
 };
