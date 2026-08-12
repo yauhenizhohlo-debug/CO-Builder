@@ -115,7 +115,7 @@ export function MortgageOptions() {
             type="date"
             value={transactionDate}
             onChange={(event) => setTransactionDate(event.target.value || todayIso())}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+            className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
           />
         </label>
 
@@ -129,7 +129,7 @@ export function MortgageOptions() {
               step="10000"
               value={initialPayment}
               onChange={(event) => setInitialPayment(Math.min(room.price, Math.max(0, Number(event.target.value) || 0)))}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+              className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
             />
           </label>
           <label className="block">
@@ -144,7 +144,7 @@ export function MortgageOptions() {
                 const percent = Math.min(100, Math.max(0, Number(event.target.value) || 0));
                 setInitialPayment(Math.round(room.price * percent / 100));
               }}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+              className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
             />
           </label>
         </div>
@@ -186,7 +186,7 @@ export function MortgageOptions() {
                 if (rateProgram === "base") setBaseRate(value);
                 else setCustomRate(value);
               }}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+              className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
             />
           </label>
           <p className="mt-2 text-[10px] leading-4 text-stone-600">Ставка вводится менеджером по актуальным условиям банка и не является зафиксированным предложением.</p>
@@ -201,7 +201,7 @@ export function MortgageOptions() {
             step="1"
             value={termYears}
             onChange={(event) => setTermYears(Math.min(30, Math.max(1, Number(event.target.value) || 1)))}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+            className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
           />
         </label>
 
@@ -242,7 +242,7 @@ export function MortgageOptions() {
                       value={tranche.amount}
                       onChange={(event) => updateTranche(index, "amount", Number(event.target.value) || 0)}
                       inputMode="numeric"
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-sm text-stone-100 outline-none focus:border-amber-200/50"
+                      className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-base text-stone-100 outline-none focus:border-amber-200/50 sm:text-sm"
                     />
                   </label>
                   <label>
@@ -257,7 +257,7 @@ export function MortgageOptions() {
                       disabled={index === 0}
                       onChange={(event) => updateTranche(index, "issueMonth", Number(event.target.value) || 0)}
                       inputMode="numeric"
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-sm text-stone-100 outline-none focus:border-amber-200/50 disabled:cursor-not-allowed disabled:text-stone-600"
+                      className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-base text-stone-100 outline-none focus:border-amber-200/50 disabled:cursor-not-allowed disabled:text-stone-600 sm:text-sm"
                     />
                   </label>
                 </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
+import { downloadProposalPdf } from "../lib/download-proposal-pdf";
 import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
 
@@ -23,6 +24,9 @@ const formatDate = (date: string) =>
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
+const PDF_PAGE_WIDTH = 794;
+const PDF_PAGE_HEIGHT = 1123;
+const PDF_PAGE_GAP = 24;
 
 function PageFooter({ page, dark = false }: { page: number; dark?: boolean }) {
   return (
@@ -55,6 +59,10 @@ export function ProposalPreview({
   const context = useProposalContext();
   const proposalData = importedProposalData ?? context.proposalData;
   const [isOpen, setIsOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [previewScale, setPreviewScale] = useState(1);
+  const proposalRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -70,6 +78,17 @@ export function ProposalPreview({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateScale = () => {
+      const availableWidth = Math.max(280, window.innerWidth - 24);
+      setPreviewScale(Math.min(1, availableWidth / PDF_PAGE_WIDTH));
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [isOpen]);
+
   const room = proposalData?.room;
   const layout = room ? getLayoutById(room.layoutId) : undefined;
   const renderSet = room ? getRenderSetById(room.renderSetId) : undefined;
@@ -78,28 +97,21 @@ export function ProposalPreview({
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
 
-  const handlePrint = async () => {
-    const proposal = document.querySelector<HTMLElement>(".proposal-print-root");
-    const images = proposal ? Array.from(proposal.querySelectorAll("img")) : [];
-
-    await Promise.all(
-      images.map((image) => {
-        if (image.complete) {
-          return image.decode?.().catch(() => undefined) ?? Promise.resolve();
-        }
-
-        return new Promise<void>((resolve) => {
-          image.addEventListener("load", () => resolve(), { once: true });
-          image.addEventListener("error", () => resolve(), { once: true });
-        });
-      }),
-    );
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-
-    window.print();
+  const handleDownloadPdf = async () => {
+    if (!proposalRootRef.current || isExporting) return;
+    setIsExporting(true);
+    setExportError("");
+    try {
+      await downloadProposalPdf(
+        proposalRootRef.current,
+        `cosmos-black-sea-room-${room?.roomNumber.replace(/^№/, "") ?? "proposal"}.pdf`,
+      );
+    } catch (error) {
+      console.error("proposal_pdf_export_failed", error);
+      setExportError("Не удалось сформировать PDF. Повторите попытку.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -121,27 +133,35 @@ export function ProposalPreview({
       </section>
 
       {isOpen && proposalData && room && createPortal(
-        <div className="proposal-print-root">
+        <div ref={proposalRootRef} className="proposal-print-root">
           <div className="proposal-modal fixed inset-0 z-[70] overflow-y-auto bg-stone-950/95 backdrop-blur-sm">
-            <div className="proposal-controls sticky top-0 z-20 border-b border-white/10 bg-stone-950/90 px-4 py-3 backdrop-blur">
-              <div className="mx-auto flex max-w-[794px] items-center justify-between gap-3">
-                <div>
+            <div className="proposal-controls sticky top-0 z-20 border-b border-white/10 bg-stone-950/95 px-3 py-3 backdrop-blur sm:px-4">
+              <div className="mx-auto flex max-w-[794px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-[0.18em] text-amber-100/70">Preview КП</p>
                   <p className="mt-1 text-xs text-stone-500">Номер {room.roomNumber.replace(/^№/, "")}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={handlePrint} className="relative z-10 rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50">
-                    Сохранить PDF
+                <div className="grid w-full grid-cols-[1fr_auto] gap-2 sm:flex sm:w-auto">
+                  <button type="button" disabled={isExporting} onClick={handleDownloadPdf} className="relative z-10 min-h-11 rounded-lg bg-amber-100 px-4 py-2.5 text-sm font-medium text-stone-950 hover:bg-amber-50 disabled:cursor-wait disabled:opacity-60 sm:text-xs">
+                    {isExporting ? "Формируем PDF…" : "Скачать PDF"}
                   </button>
-                  <button type="button" onClick={() => setIsOpen(false)} className="rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">
+                  <button type="button" disabled={isExporting} onClick={() => setIsOpen(false)} className="min-h-11 rounded-lg border border-white/15 px-4 py-2.5 text-sm text-stone-300 hover:border-white/30 disabled:opacity-40 sm:text-xs">
                     Закрыть
                   </button>
                 </div>
+                {exportError && <p aria-live="polite" className="text-xs text-red-300 sm:basis-full">{exportError}</p>}
               </div>
             </div>
 
-            <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
-              <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+            <div
+              className="proposal-pages-viewport mx-auto my-4 sm:my-6"
+              style={{
+                width: PDF_PAGE_WIDTH * previewScale,
+                height: (PDF_PAGE_HEIGHT * 3 + PDF_PAGE_GAP * 2) * previewScale,
+              }}
+            >
+            <div className="proposal-pages flex w-[794px] flex-col gap-6" style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
+              <article data-pdf-page className="proposal-page flex h-[1123px] min-h-[1123px] w-[794px] min-w-[794px] flex-col overflow-hidden bg-[#f4f0e8] p-14 text-[#191713] shadow-2xl">
                 <header className="border-b border-[#cec5b6] pb-6">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
@@ -187,7 +207,7 @@ export function ProposalPreview({
                 <PageFooter page={1} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+              <article data-pdf-page className="proposal-page flex h-[1123px] min-h-[1123px] w-[794px] min-w-[794px] flex-col overflow-hidden bg-[#f4f0e8] p-14 text-[#191713] shadow-2xl">
                 <header className="flex items-end justify-between border-b border-[#cec5b6] pb-5">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
@@ -340,7 +360,7 @@ export function ProposalPreview({
                 <PageFooter page={2} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#151310] p-10 text-stone-100 shadow-2xl sm:p-14">
+              <article data-pdf-page className="proposal-page flex h-[1123px] min-h-[1123px] w-[794px] min-w-[794px] flex-col overflow-hidden bg-[#151310] p-14 text-stone-100 shadow-2xl">
                 <header className="flex items-end justify-between border-b border-white/15 pb-6">
                   <div>
                     <p className="text-[10px] tracking-[0.34em] text-[#c5a97e]">COSMOS BLACK SEA</p>
@@ -364,6 +384,7 @@ export function ProposalPreview({
                 </div>
                 <PageFooter page={3} dark />
               </article>
+            </div>
             </div>
           </div>
         </div>,

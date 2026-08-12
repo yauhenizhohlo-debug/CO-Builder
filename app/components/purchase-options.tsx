@@ -162,7 +162,7 @@ function InstallmentOptions() {
             type="date"
             value={transactionDate}
             onChange={(event) => setTransactionDate(event.target.value || todayIso())}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+            className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
           />
         </label>
 
@@ -199,7 +199,7 @@ function InstallmentOptions() {
                 step="1"
                 value={customInitialPayment}
                 onChange={(event) => setCustomInitialPayment(Math.min(100, Math.max(0, Number(event.target.value))))}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+                className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
               />
             </label>
             <label className="block">
@@ -210,7 +210,7 @@ function InstallmentOptions() {
                 step="10000"
                 value={customMonthlyPayment}
                 onChange={(event) => setCustomMonthlyPayment(Math.max(0, Number(event.target.value)))}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+                className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
               />
             </label>
           </div>
@@ -231,7 +231,7 @@ function InstallmentOptions() {
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-5 gap-2" role="radiogroup" aria-label="Размер скидки">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5" role="radiogroup" aria-label="Размер скидки">
             {([
               ["0", "Без скидки"],
               ["1", "1%"],
@@ -247,7 +247,7 @@ function InstallmentOptions() {
                   role="radio"
                   aria-checked={active}
                   onClick={() => selectDiscount(option)}
-                  className={`rounded-lg border px-2 py-2.5 text-[11px] transition ${active ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
+                  className={`min-h-11 rounded-lg border px-2 py-2.5 text-[11px] transition ${active ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 bg-white/[0.02] text-stone-500 hover:border-white/25"}`}
                 >
                   {label}
                 </button>
@@ -265,7 +265,7 @@ function InstallmentOptions() {
                     role="radio"
                     aria-checked={customDiscountMode === mode}
                     onClick={() => setCustomDiscountMode(mode)}
-                    className={`rounded-lg border px-3 py-2 text-xs transition ${customDiscountMode === mode ? "border-amber-200/60 text-amber-100" : "border-white/10 text-stone-500"}`}
+                    className={`min-h-11 rounded-lg border px-3 py-2 text-xs transition ${customDiscountMode === mode ? "border-amber-200/60 text-amber-100" : "border-white/10 text-stone-500"}`}
                   >
                     {mode === "percent" ? "Проценты" : "Рубли"}
                   </button>
@@ -288,7 +288,7 @@ function InstallmentOptions() {
                     });
                     setCustomDiscountAmount(nextDiscount.discountAmount);
                   }}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-200/50"
+                  className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-2.5 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
                 />
               </label>
 

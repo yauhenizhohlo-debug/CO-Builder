@@ -70,7 +70,7 @@ export function RoomSelector() {
   };
 
   return (
-    <section className="panel overflow-hidden xl:col-span-2" aria-labelledby="room-heading">
+    <section className="panel min-w-0 overflow-hidden xl:col-span-2" aria-labelledby="room-heading">
       <div className="border-b border-white/10 p-5 sm:p-7">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
@@ -80,7 +80,7 @@ export function RoomSelector() {
           <p className="text-xs text-stone-500">Выберите этаж, затем подходящий номер</p>
         </div>
 
-        <div className="mt-7 grid grid-cols-6 gap-2 rounded-xl border border-white/10 bg-stone-950/35 p-1.5" role="tablist" aria-label="Этажи">
+        <div className="mt-7 grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-stone-950/35 p-1.5 sm:grid-cols-6" role="tablist" aria-label="Этажи">
           {floors.map((floor) => (
             <button
               key={floor}
@@ -90,7 +90,7 @@ export function RoomSelector() {
               aria-selected={selectedFloor === floor}
               aria-controls="room-cards"
               onClick={() => selectFloor(floor)}
-              className={`rounded-lg px-2 py-3 text-xs uppercase tracking-[0.12em] transition sm:text-sm ${
+              className={`min-h-11 rounded-lg px-2 py-3 text-xs uppercase tracking-[0.12em] transition sm:text-sm ${
                 selectedFloor === floor
                   ? "bg-amber-100 text-stone-950 shadow-[0_8px_24px_rgba(231,211,173,0.12)]"
                   : "text-stone-500 hover:bg-white/5 hover:text-stone-200"
@@ -154,8 +154,8 @@ export function RoomSelector() {
         </div>
       </div>
 
-      <div className="grid gap-px bg-white/10 lg:grid-cols-[0.72fr_1.28fr]">
-        <div className="bg-stone-900 p-5 sm:p-7">
+      <div className="grid min-w-0 grid-cols-1 gap-px bg-white/10 lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="min-w-0 bg-stone-900 p-5 sm:p-7">
           <p className="eyebrow">Выбранный объект</p>
           <div className="mt-3 flex items-end justify-between gap-4">
             <h3 className="font-serif text-4xl text-amber-50">№ {selectedRoom.roomNumber.replace(/^№/, "")}</h3>
@@ -182,7 +182,7 @@ export function RoomSelector() {
           </div>
         </div>
 
-        <div className="bg-stone-900 p-3" aria-label="Материалы выбранного номера">
+        <div className="min-w-0 bg-stone-900 p-3" aria-label="Материалы выбранного номера">
           <div className="floorplan-placeholder relative min-h-[340px] overflow-hidden rounded-xl border border-white/10 sm:min-h-[400px]">
             <div className="absolute left-5 top-5 z-10 rounded-full bg-stone-950/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-300 backdrop-blur">
               Планировка · № {selectedRoom.roomNumber.replace(/^№/, "")}
@@ -264,7 +264,7 @@ export function RoomSelector() {
                 )}
               </div>
 
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Миниатюры рендеров">
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:overflow-x-auto sm:pb-1" aria-label="Миниатюры рендеров">
                 {selectedRenderSet?.imagePaths.map((path, index) => {
                   const active = index === activeRenderIndex;
                   const failed = failedRenderPaths.has(path);
@@ -274,7 +274,7 @@ export function RoomSelector() {
                       type="button"
                       onClick={() => setActiveRenderIndex(index)}
                       aria-pressed={active}
-                      className={`relative h-20 min-w-24 flex-1 overflow-hidden rounded-lg border transition sm:h-24 sm:min-w-28 ${
+                      className={`relative h-20 min-w-0 w-full overflow-hidden rounded-lg border transition sm:h-24 sm:min-w-28 sm:flex-1 ${
                         active ? "border-amber-200/70" : "border-white/10 opacity-60 hover:opacity-100"
                       }`}
                     >

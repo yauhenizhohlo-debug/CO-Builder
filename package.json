@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@cosmos/proposal-contract": "file:packages/proposal-contract",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
     "next": "16.1.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"

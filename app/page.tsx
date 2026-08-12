@@ -13,7 +13,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
       <ProposalProvider>
         <main className="min-h-screen bg-stone-950 text-stone-100">
       <header className="border-b border-white/10 px-5 py-5 lg:px-10">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-6">
+        <div className="mx-auto flex min-w-0 max-w-[1500px] items-center justify-between gap-4 sm:gap-6">
           <div className="flex items-center gap-4">
             <div className="grid size-10 place-items-center rounded-full border border-amber-200/40 text-lg text-amber-100">
               C
@@ -23,7 +23,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
               <p className="text-[10px] uppercase tracking-[0.32em] text-stone-500">Black Sea</p>
             </div>
           </div>
-          <div className="text-right">
+          <div className="min-w-0 text-right">
             <p className="text-xs uppercase tracking-[0.22em] text-amber-100/70">KP Builder</p>
             <p className="mt-1 hidden text-xs text-stone-500 sm:block">Инструмент отдела продаж</p>
           </div>
@@ -50,17 +50,17 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
             ["03", "Расчёт", "active"],
             ["04", "Коммерческое предложение", "active"],
           ].map(([number, title, state]) => (
-            <div key={number} className={`bg-stone-900 px-4 py-4 sm:px-5 ${state === "future" ? "text-stone-600" : "text-stone-200"}`}>
+            <div key={number} className={`min-w-0 bg-stone-900 px-3 py-4 sm:px-5 ${state === "future" ? "text-stone-600" : "text-stone-200"}`}>
               <span className="mr-3 text-[10px] tracking-widest text-amber-200/60">{number}</span>
-              <span className="text-xs uppercase tracking-[0.12em] sm:text-sm">{title}</span>
+              <span className="break-words text-[11px] uppercase tracking-[0.08em] sm:text-sm sm:tracking-[0.12em]">{title}</span>
             </div>
           ))}
         </nav>
 
-        <div className="grid gap-5 xl:grid-cols-[0.85fr_1.45fr_0.9fr]">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-[0.85fr_1.45fr_0.9fr]">
           <RoomSelector />
 
-          <aside className="space-y-5">
+          <aside className="min-w-0 space-y-5">
             <PurchaseOptions />
 
             <ProposalPreview />

@@ -47,8 +47,8 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-stone-950 p-10 text-white">
-        <h1 className="font-serif text-4xl">Не удалось загрузить КП</h1>
+      <main className="min-h-screen bg-stone-950 p-5 text-white sm:p-10">
+        <h1 className="font-serif text-3xl sm:text-4xl">Не удалось загрузить КП</h1>
         <p className="mt-4 text-stone-400">{error}</p>
         <a className="mt-6 inline-block text-amber-100" href="/">Открыть Builder без context</a>
       </main>
@@ -56,7 +56,7 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
   }
 
   if (!value || !proposalData) {
-    return <main className="min-h-screen bg-stone-950 p-10 text-white">Загружаем расчёт из COSMOS Inventory…</main>;
+    return <main className="min-h-screen bg-stone-950 p-5 text-white sm:p-10">Загружаем расчёт из COSMOS Inventory…</main>;
   }
 
   const { data, liveCheck } = value;
@@ -65,7 +65,7 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
 
   return (
     <main className="min-h-screen bg-stone-950 p-5 text-white lg:p-10">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto min-w-0 max-w-6xl">
         {returnUrl && <a className="mb-5 inline-block text-sm text-amber-100 hover:text-white" href={returnUrl}>← Вернуться к лоту №{unit.unitNumber.replace(/^№/, "")}</a>}
         <div className="rounded-xl border border-emerald-300/30 p-4 text-sm text-emerald-100">
           Лот и расчёты загружены из COSMOS Inventory · №{unit.unitNumber.replace(/^№/, "")} · {unit.area ?? "—"} м² · {formatRubles(unit.price)}
@@ -80,7 +80,7 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
 
         <header className="py-10">
           <p className="eyebrow">Готовое коммерческое предложение</p>
-          <h1 className="mt-3 font-serif text-5xl">Номер {unit.unitNumber.replace(/^№/, "")}</h1>
+          <h1 className="mt-3 font-serif text-4xl sm:text-5xl">Номер {unit.unitNumber.replace(/^№/, "")}</h1>
           <p className="mt-3 text-stone-400">{unit.floor} этаж · {unit.area ?? "—"} м²{unit.viewType ? ` · ${unit.viewType}` : ""}</p>
         </header>
 
@@ -93,7 +93,7 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
                 ["Цена за м²", formatRubles(unit.pricePerSqm)],
                 ["Статус на дату snapshot", unit.status],
               ].map(([label, content]) => (
-                <div key={label} className="flex justify-between gap-3 border-b border-white/10 py-3">
+                <div key={label} className="flex min-w-0 flex-col gap-1 border-b border-white/10 py-3 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                   <dt className="text-stone-500">{label}</dt>
                   <dd>{content}</dd>
                 </div>
@@ -104,15 +104,15 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
           <section className="panel p-6">
             <p className="eyebrow">Snapshot условий</p>
             <dl className="mt-3">
-              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+              <div className="flex min-w-0 flex-col gap-1 border-b border-white/10 py-3 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                 <dt className="text-stone-500">Режим</dt>
                 <dd>{paymentModeLabel(data.payment.mode)}</dd>
               </div>
-              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+              <div className="flex min-w-0 flex-col gap-1 border-b border-white/10 py-3 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                 <dt className="text-stone-500">Версия расчёта</dt>
                 <dd>{data.paymentEngineVersion}</dd>
               </div>
-              <div className="flex justify-between gap-3 border-b border-white/10 py-3">
+              <div className="flex min-w-0 flex-col gap-1 border-b border-white/10 py-3 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                 <dt className="text-stone-500">Зафиксирован</dt>
                 <dd>{new Date(data.createdAt).toLocaleDateString("ru-RU")}</dd>
               </div>
@@ -120,7 +120,7 @@ function ImportedContextContent({ contextId }: { contextId: string }) {
           </section>
         </div>
 
-        <div className="mt-5 max-w-sm">
+        <div className="mt-5 w-full max-w-sm">
           <ProposalPreview importedProposalData={proposalData} />
         </div>
       </div>
