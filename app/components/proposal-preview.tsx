@@ -96,6 +96,9 @@ export function ProposalPreview({
   const mortgage = proposalData?.financingType === "mortgage" ? proposalData.mortgage : undefined;
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
+  const financingLabel = installment ? "Рассрочка" : "Ипотека";
+  const initialPaymentPercent = installment?.initialPaymentPercent ?? mortgage?.initialPaymentPercent ?? 0;
+  const pdfFilename = `${financingLabel} номер ${room?.roomNumber.replace(/^№/, "") ?? ""} ПВ ${formatPercent(initialPaymentPercent)}%.pdf`;
 
   const handleDownloadPdf = async () => {
     if (!proposalRootRef.current || isExporting) return;
@@ -104,7 +107,7 @@ export function ProposalPreview({
     try {
       await downloadProposalPdf(
         proposalRootRef.current,
-        `cosmos-black-sea-room-${room?.roomNumber.replace(/^№/, "") ?? "proposal"}.pdf`,
+        pdfFilename,
       );
     } catch (error) {
       console.error("proposal_pdf_export_failed", error);
