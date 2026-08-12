@@ -1,11 +1,13 @@
 import { createServer } from "node:http";
-import { installmentContext, mortgageContext } from "./fixtures/proposal-contexts.mjs";
+import { installmentContext, mortgageContext,standardMortgageContext } from "./fixtures/proposal-contexts.mjs";
 
 const port = Number(process.env.MOCK_INVENTORY_PORT ?? 3101);
 
 createServer((request, response) => {
   const context = request.url?.endsWith(mortgageContext.data.id)
     ? mortgageContext
+    : request.url?.endsWith(standardMortgageContext.data.id)
+      ? standardMortgageContext
     : request.url?.endsWith(installmentContext.data.id)
       ? installmentContext
       : null;

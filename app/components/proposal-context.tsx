@@ -18,6 +18,8 @@ export type MortgageProposalData = {
   room: Room;
   financingType: "mortgage";
   mortgage: TrancheMortgageResult;
+  mortgageKind?:"tranche"|"standard";
+  standardMonthlyPayment?:number;
 };
 
 export type ProposalData = InstallmentProposalData | MortgageProposalData;

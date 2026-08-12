@@ -88,3 +88,5 @@ export const installmentContext = {
   },
   liveCheck: { priceChanged: false, statusChanged: false, currentPrice: 22_990_000, currentStatus: "AVAILABLE" },
 };
+
+export const standardMortgageContext={data:{...common,id:"33333333-3333-4333-8333-333333333333",schemaVersion:3,purchaseScenarioId:"44444444-4444-4444-8444-444444444444",payment:{mode:"MORTGAGE",inputs:{mode:"MORTGAGE",downPaymentPercent:30,annualRatePercent:"19.2",termYears:30},result:{purchasePrice:2_299_000_000,downPayment:689_700_000,loanAmount:1_609_300_000,annualRatePercent:"19.2",loanTermMonths:360,monthlyPayment:24_253_500,totalPayment:8_731_260_000,overpayment:7_121_960_000,validationMessages:[]}}},liveCheck:{priceChanged:false,statusChanged:false,currentPrice:22_990_000,currentStatus:"AVAILABLE"}};

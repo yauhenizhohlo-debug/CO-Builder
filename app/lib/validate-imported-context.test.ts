@@ -134,6 +134,8 @@ function installmentResponse(): ProposalContextResponse {
   return value;
 }
 
+function standardMortgageResponse():ProposalContextResponse {const value=baseResponse();value.data.schemaVersion=3;value.data.purchaseScenarioId="33333333-3333-4333-8333-333333333333";value.data.payment={mode:"MORTGAGE",inputs:{mode:"MORTGAGE",downPaymentPercent:30,annualRatePercent:"19.2",termYears:30},result:{purchasePrice:money(2_299_000_000),downPayment:money(689_700_000),loanAmount:money(1_609_300_000),annualRatePercent:"19.2",loanTermMonths:360,monthlyPayment:money(26_242_600),totalPayment:money(9_447_336_000),overpayment:money(7_838_036_000),validationMessages:[]}};return value}
+
 test("Money is consistently converted from kopecks", () => {
   assert.equal(moneyToRubles(money(2_299_000_000)), 22_990_000);
   assert.equal(formatMoney(money(2_299_000_000)), "22 990 000 ₽");
@@ -147,7 +149,7 @@ test("runtime parser accepts the production contract", () => {
 test("runtime parser rejects malformed money and unsupported versions", () => {
   const invalidMoney: unknown = { ...baseResponse(), data: { ...baseResponse().data, unitSnapshot: { ...baseResponse().data.unitSnapshot, price: 22.9 } } };
   assert.throws(() => validateImportedContext(invalidMoney), /INVALID_PROPOSAL_CONTEXT/);
-  const invalidVersion: unknown = { ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 3 } };
+  const invalidVersion: unknown = { ...baseResponse(), data: { ...baseResponse().data, schemaVersion: 4 } };
   assert.throws(() => validateImportedContext(invalidVersion), /UNSUPPORTED_PROPOSAL_CONTEXT_VERSION/);
 });
 
@@ -182,6 +184,8 @@ test("installment snapshot maps its own schedule", () => {
   assert.equal(mapped.installment.secondPeriodPayments, 100_000);
   assert.equal(mapped.schedule[3]?.type, "regular-second");
 });
+
+test("standard mortgage v3 snapshot maps without legacy recalculation",()=>{const parsed=validateImportedContext(standardMortgageResponse());assert.equal(parsed.data.purchaseScenarioId,"33333333-3333-4333-8333-333333333333");const mapped=mapImportedProposal(parsed.data);assert.equal(mapped.financingType,"mortgage");if(mapped.financingType!=="mortgage")assert.fail("Expected mortgage");assert.equal(mapped.mortgageKind,"standard");assert.equal(mapped.mortgage.loanAmount,16_093_000);assert.equal(mapped.standardMonthlyPayment,262_426);assert.equal(mapped.mortgage.stages.length,0)});
 
 test("live warnings stay separate from snapshot values", () => {
   const value = baseResponse();

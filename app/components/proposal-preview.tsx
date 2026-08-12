@@ -94,6 +94,8 @@ export function ProposalPreview({
   const renderSet = room ? getRenderSetById(room.renderSetId) : undefined;
   const installment = proposalData?.financingType === "installment" ? proposalData.installment : undefined;
   const mortgage = proposalData?.financingType === "mortgage" ? proposalData.mortgage : undefined;
+  const standardMortgage=proposalData?.financingType==="mortgage"&&proposalData.mortgageKind==="standard";
+  const standardMonthlyPayment=proposalData?.financingType==="mortgage"?proposalData.standardMonthlyPayment:undefined;
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
   const financingLabel = installment ? "Рассрочка" : "Ипотека";
@@ -299,7 +301,7 @@ export function ProposalPreview({
                   <div className="mt-5 flex items-end justify-between border-y border-[#d8d0c4] py-4">
                     <div>
                       <p className="text-[8px] uppercase tracking-[0.18em] text-[#9a7747]">Финансовая траектория</p>
-                      <p className="mt-2 font-serif text-[25px]">Предварительный расчёт траншевой ипотеки</p>
+                      <p className="mt-2 font-serif text-[25px]">{standardMortgage?"Предварительный расчёт стандартной ипотеки":"Предварительный расчёт траншевой ипотеки"}</p>
                     </div>
                   </div>
 
@@ -329,8 +331,8 @@ export function ProposalPreview({
                   </dl>
 
                   <div className="mt-7 flex-1">
-                    <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">График этапов</p>
-                    <ol className="mt-4">
+                    <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">{standardMortgage?"Ежемесячный платёж":"График этапов"}</p>
+                    {standardMortgage?<div className="mt-4 border border-[#b59463] bg-[#e9dfcf] p-6"><p className="text-[8px] uppercase tracking-[0.16em] text-stone-500">Платёж по сохранённому расчёту</p><p className="mt-3 font-serif text-[34px]">{formatCurrency(standardMonthlyPayment??0)} / мес.</p></div>:<ol className="mt-4">
                       <li className="relative border-l border-[#b59463] pb-6 pl-7">
                         <span className="absolute -left-[5px] top-0 size-[9px] rounded-full border border-[#9a7747] bg-[#f4f0e8]" />
                         <p className="text-[8px] uppercase tracking-[0.16em] text-stone-500">Сегодня</p>
@@ -353,11 +355,11 @@ export function ProposalPreview({
                           </div>
                         </li>
                       ))}
-                    </ol>
+                    </ol>}
                   </div>
 
                   <div className="mt-7 border border-[#d0c5b5] bg-[#faf8f4] p-4">
-                    <p className="text-[7px] leading-4 text-stone-500">Предварительный расчёт траншевой ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.</p>
+                    <p className="text-[7px] leading-4 text-stone-500">Предварительный расчёт {standardMortgage?"стандартной":"траншевой"} ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.</p>
                   </div>
                 </> : null}
                 <PageFooter page={2} />

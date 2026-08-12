@@ -1,6 +1,7 @@
 import type {
   ImportedInstallmentResult,
   ImportedTrancheMortgageResult,
+  ImportedMortgageResult,
   ProposalContext,
 } from "@cosmos/proposal-contract";
 import { rooms, type Room } from "../data/rooms.ts";
@@ -149,11 +150,13 @@ export function mapImportedProposal(context: ProposalContext): ProposalData {
     return {
       room,
       financingType: "mortgage",
+      mortgageKind:"tranche",
       mortgage: mapMortgageResult(
         context as ProposalContext & { payment: Extract<ProposalContext["payment"], { mode: "TRANCHE_MORTGAGE" }> },
         context.payment.result,
       ),
     };
   }
+  if(context.payment.mode==="MORTGAGE"){const result=context.payment.result as ImportedMortgageResult;const price=rubles(result.purchasePrice),initialPayment=rubles(result.downPayment);return{room,financingType:"mortgage",mortgageKind:"standard",standardMonthlyPayment:rubles(result.monthlyPayment),mortgage:{price,initialPayment,initialPaymentPercent:price>0?initialPayment/price*100:0,loanAmount:rubles(result.loanAmount),annualRate:Number(result.annualRatePercent),termMonths:result.loanTermMonths,termYears:result.loanTermMonths/12,trancheTotal:rubles(result.loanAmount),difference:0,isBalanced:result.validationMessages.length===0,validationMessages:result.validationMessages,stages:[],schedule:[],remainingBalance:0,totalInterest:rubles(result.overpayment),totalPayments:rubles(result.totalPayment)}}}
   throw new Error("UNSUPPORTED_IMPORTED_PAYMENT_MODE");
 }
