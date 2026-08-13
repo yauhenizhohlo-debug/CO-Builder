@@ -53,8 +53,10 @@ function ProposalImage({ src, alt, className }: { src?: string; alt: string; cla
 
 export function ProposalPreview({
   importedProposalData,
+  actionLabel = "Сформировать КП",
 }: {
   importedProposalData?: ProposalData;
+  actionLabel?: string;
 } = {}) {
   const context = useProposalContext();
   const proposalData = importedProposalData ?? context.proposalData;
@@ -97,6 +99,7 @@ export function ProposalPreview({
   const standardMortgage=proposalData?.financingType==="mortgage"&&proposalData.mortgageKind==="standard";
   const standardMonthlyPayment=proposalData?.financingType==="mortgage"?proposalData.standardMonthlyPayment:undefined;
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
+  const investmentOnly = proposalData?.financingType === "none" && Boolean(proposalData.investment);
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
   const financingLabel = installment ? "Рассрочка" : mortgage ? "Ипотека" : "Предложение";
   const initialPaymentPercent = installment?.initialPaymentPercent ?? mortgage?.initialPaymentPercent ?? 0;
@@ -133,7 +136,7 @@ export function ProposalPreview({
           onClick={() => setIsOpen(true)}
           className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Сформировать КП
+          {actionLabel}
         </button>
       </section>
 
@@ -216,7 +219,7 @@ export function ProposalPreview({
                 <header className="flex items-end justify-between border-b border-[#cec5b6] pb-5">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
-                    <h2 className="mt-3 font-serif text-[40px] leading-none">Условия покупки</h2>
+                    <h2 className="mt-3 font-serif text-[40px] leading-none">{investmentOnly ? "Инвестиционный прогноз" : "Условия покупки"}</h2>
                   </div>
                   <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {room.area.toLocaleString("ru-RU")} м²</p>
                 </header>
@@ -361,7 +364,7 @@ export function ProposalPreview({
                   <div className="mt-7 border border-[#d0c5b5] bg-[#faf8f4] p-4">
                     <p className="text-[7px] leading-4 text-stone-500">Предварительный расчёт {standardMortgage?"стандартной":"траншевой"} ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.</p>
                   </div>
-                </> : <div className="mt-8 border border-[#b59463] bg-[#e9dfcf] p-8"><p className="text-[9px] uppercase tracking-[0.18em] text-stone-500">Предложение по объекту</p><h3 className="mt-4 font-serif text-[34px]">Условия покупки не включены</h3><p className="mt-4 text-[11px] leading-5 text-stone-600">Версия содержит immutable snapshot выбранного номера. Финансовую схему можно добавить только созданием новой версии из Sales Workspace.</p></div>}
+                </> : !investmentOnly && <div className="mt-8 border border-[#b59463] bg-[#e9dfcf] p-8"><p className="text-[9px] uppercase tracking-[0.18em] text-stone-500">Предложение по объекту</p><h3 className="mt-4 font-serif text-[34px]">Условия покупки не включены</h3><p className="mt-4 text-[11px] leading-5 text-stone-600">Добавить финансовую схему можно в Sales Workspace, создав новую версию предложения.</p></div>}
                 {proposalData.investment&&<div className="mt-5 border border-[#b59463] bg-[#faf8f4] p-5"><p className="text-[8px] uppercase tracking-[0.18em] text-[#9a7747]">Инвестиционный прогноз</p><div className="mt-3 grid grid-cols-3 gap-3">{[["Сценарий",proposalData.investment.scenarioLabel??"—"],["Доход, год 1",formatCurrency(proposalData.investment.firstYearIncome??0)],["Доходность",`${formatPercent(proposalData.investment.firstYearYield??0)}%`],["Рост стоимости",formatCurrency(proposalData.investment.capitalGain??0)],["Горизонт",`${proposalData.investment.horizonYears??"—"} лет`]].map(([label,value])=><div key={String(label)}><p className="text-[7px] uppercase tracking-[0.1em] text-stone-500">{label}</p><p className="mt-1 text-[12px]">{value}</p></div>)}</div></div>}
                 <PageFooter page={2} />
               </article>
