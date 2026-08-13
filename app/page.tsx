@@ -4,9 +4,12 @@ import { SelectedRoomProvider } from "./components/selected-room-context";
 import { ProposalProvider } from "./components/proposal-context";
 import { ProposalPreview } from "./components/proposal-preview";
 import { ImportedInventoryContext } from "./components/imported-inventory-context";
+import { ImportedProposalVersion } from "./components/imported-proposal-version";
 
-export default async function Home({searchParams}:{searchParams:Promise<{context?:string}>}) {
-  const contextId=(await searchParams).context;
+export default async function Home({searchParams}:{searchParams:Promise<{context?:string;proposalVersion?:string}>}) {
+  const params=await searchParams;
+  if(params.proposalVersion)return <ImportedProposalVersion contextId={params.proposalVersion}/>;
+  const contextId=params.context;
   if(contextId)return <ImportedInventoryContext contextId={contextId}/>;
   return (
     <SelectedRoomProvider>

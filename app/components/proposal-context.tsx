@@ -22,7 +22,9 @@ export type MortgageProposalData = {
   standardMonthlyPayment?:number;
 };
 
-export type ProposalData = InstallmentProposalData | MortgageProposalData;
+export type InvestmentProjection={scenarioLabel?:string;entryPrice?:number;firstYearIncome?:number;firstYearYield?:number;capitalGain?:number;totalRoi?:number;horizonYears?:number;financing?:Record<string,unknown>|null};
+export type UnitProposalData={room:Room;financingType:"none"};
+export type ProposalData = (InstallmentProposalData | MortgageProposalData | UnitProposalData)&{investment?:InvestmentProjection|null};
 
 type ProposalContextValue = {
   proposalData: ProposalData | null;
