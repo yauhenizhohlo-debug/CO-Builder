@@ -228,7 +228,7 @@ export function ProposalPreview({
                 <dl className="mt-4 grid grid-cols-4 gap-3 border-y border-[#d8d0c4] py-3">
                   {[
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
-                    ["Скидка", `${formatPercent(installment.discountPercent)}% · ${formatCurrency(installment.discountAmount)}`],
+                    ["Скидка", installment.discountPercent > 0 ? `${formatPercent(installment.discountPercent)}% · ${formatCurrency(installment.discountAmount)}` : formatCurrency(installment.discountAmount)],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
                     ["Условия", `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
                   ].map(([label, value]) => (
