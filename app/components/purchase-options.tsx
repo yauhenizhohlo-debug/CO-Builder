@@ -151,7 +151,7 @@ function InstallmentOptions() {
 
   return (
     <>
-      <section className="panel p-6" aria-labelledby="purchase-heading">
+      <section className="purchase-configuration panel p-6" aria-labelledby="purchase-heading">
         <p className="eyebrow">02 · Условия покупки</p>
         <h2 id="purchase-heading" className="mt-3 font-serif text-2xl">Рассрочка</h2>
         <p className="mt-2 text-xs text-stone-500">Номер {room.roomNumber.replace(/^№/, "")} · {formatCurrency(room.price)}</p>
@@ -308,7 +308,7 @@ function InstallmentOptions() {
         </div>
       </section>
 
-      <section className="panel p-6" aria-labelledby="calculation-heading">
+      <section className="payment-calculation panel p-6" aria-labelledby="calculation-heading">
         <p className="eyebrow">03 · Расчёт</p>
         <h2 id="calculation-heading" className="mt-3 font-serif text-2xl">Календарь платежей</h2>
         <p className="mt-2 text-xs leading-5 text-stone-500">
@@ -371,7 +371,7 @@ export function PurchaseOptions() {
 
   return (
     <>
-      <section className="panel p-3" aria-label="Способ покупки">
+      <section className="purchase-mode panel p-3" aria-label="Способ покупки">
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Способ покупки">
           {([
             ["installment", "Рассрочка"],

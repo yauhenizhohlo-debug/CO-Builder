@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
 import { downloadProposalPdf } from "../lib/download-proposal-pdf";
+import { OPEN_PROPOSAL_PREVIEW_EVENT } from "../lib/proposal-ui-events";
 import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
 
@@ -67,6 +68,16 @@ export function ProposalPreview({
   const proposalRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const openPreview = () => {
+      if (proposalData && (proposalData.financingType !== "mortgage" || proposalData.mortgage.isBalanced)) {
+        setIsOpen(true);
+      }
+    };
+    window.addEventListener(OPEN_PROPOSAL_PREVIEW_EVENT, openPreview);
+    return () => window.removeEventListener(OPEN_PROPOSAL_PREVIEW_EVENT, openPreview);
+  }, [proposalData]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -104,6 +115,12 @@ export function ProposalPreview({
   const financingLabel = installment ? "Рассрочка" : mortgage ? "Ипотека" : "Предложение";
   const initialPaymentPercent = installment?.initialPaymentPercent ?? mortgage?.initialPaymentPercent ?? 0;
   const pdfFilename = `${financingLabel} номер ${room?.roomNumber.replace(/^№/, "") ?? ""} ПВ ${formatPercent(initialPaymentPercent)}%.pdf`;
+  const initialPayment = installment?.initialPayment ?? mortgage?.initialPayment;
+  const regularPayment = installment?.monthlyPayment ?? mortgage?.stages[0]?.monthlyPayment;
+  const proposalReady = Boolean(
+    proposalData
+    && (proposalData.financingType !== "mortgage" || proposalData.mortgage.isBalanced),
+  );
 
   const handleDownloadPdf = async () => {
     if (!proposalRootRef.current || isExporting) return;
@@ -124,17 +141,54 @@ export function ProposalPreview({
 
   return (
     <>
-      <section className="panel p-6" aria-labelledby="offer-heading">
-        <p className="eyebrow">04 · Финальный этап</p>
-        <h2 id="offer-heading" className="mt-3 font-serif text-2xl">Коммерческое предложение</h2>
-        <p className="mt-3 text-sm leading-6 text-stone-500">
-          Три готовые к печати страницы с объектом, условиями и галереей.
-        </p>
+      <section className="proposal-card panel p-6" aria-labelledby="offer-heading">
+        <div className="proposal-card__classic">
+          <p className="eyebrow">04 · Финальный этап</p>
+          <h2 id="offer-heading" className="mt-3 font-serif text-2xl">Коммерческое предложение</h2>
+          <p className="mt-3 text-sm leading-6 text-stone-500">
+            Три готовые к печати страницы с объектом, условиями и галереей.
+          </p>
+        </div>
+        <div className="proposal-card__enterprise">
+          <div className="proposal-card__header">
+            <div>
+              <p className="eyebrow">Proposal preview</p>
+              <h2 className="proposal-card__title">Коммерческое предложение</h2>
+            </div>
+            <span className={`proposal-card__status ${proposalReady ? "is-ready" : ""}`}>
+              {proposalReady ? "Готово" : "Настройка"}
+            </span>
+          </div>
+
+          <div className="proposal-document-surface" aria-label="Сводка коммерческого предложения">
+            <div className="proposal-document-surface__brand">COSMOS BLACK SEA</div>
+            <div className="proposal-document-surface__unit">
+              <div>
+                <span>Выбранный номер</span>
+                <strong>№ {room?.roomNumber.replace(/^№/, "") ?? "—"}</strong>
+              </div>
+              <p>{room ? `${room.floor} этаж · ${room.area.toLocaleString("ru-RU")} м²` : "—"}</p>
+            </div>
+            <div className="proposal-document-surface__price">
+              <span>Стоимость объекта</span>
+              <strong>{room ? formatCurrency(room.price) : "—"}</strong>
+            </div>
+            <dl className="proposal-document-surface__summary">
+              <div><dt>Схема оплаты</dt><dd>{proposalData ? financingLabel : "—"}</dd></div>
+              <div><dt>Первоначальный взнос</dt><dd>{initialPayment !== undefined ? formatCurrency(initialPayment) : "—"}</dd></div>
+              <div><dt>Регулярный платёж</dt><dd>{regularPayment !== undefined ? formatCurrency(Math.floor(regularPayment)) : "—"}</dd></div>
+            </dl>
+            <div className="proposal-document-surface__pages" aria-label="Состав предложения">
+              <span>01 · Объект</span><span>02 · Условия</span><span>03 · Галерея</span>
+            </div>
+          </div>
+          <p className="proposal-card__note">Данные обновляются из текущего выбора номера и условий покупки.</p>
+        </div>
         <button
           type="button"
-          disabled={!proposalData || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
+          disabled={!proposalReady}
           onClick={() => setIsOpen(true)}
-          className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="proposal-card__action mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {actionLabel}
         </button>

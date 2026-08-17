@@ -103,7 +103,7 @@ export function MortgageOptions() {
 
   return (
     <>
-      <section className="panel p-6" aria-labelledby="mortgage-heading">
+      <section className="mortgage-configuration panel p-6" aria-labelledby="mortgage-heading">
         <p className="eyebrow">02 · Условия покупки</p>
         <h2 id="mortgage-heading" className="mt-3 font-serif text-2xl">Траншевая ипотека</h2>
         <p className="mt-2 text-xs text-stone-500">Предварительный расчёт траншевой ипотеки</p>
@@ -280,7 +280,7 @@ export function MortgageOptions() {
         </div>
       </section>
 
-      <section className="panel p-6" aria-labelledby="mortgage-calculation-heading">
+      <section className="mortgage-calculation panel p-6" aria-labelledby="mortgage-calculation-heading">
         <p className="eyebrow">03 · Расчёт</p>
         <h2 id="mortgage-calculation-heading" className="mt-3 font-serif text-2xl">Траектория финансирования</h2>
 

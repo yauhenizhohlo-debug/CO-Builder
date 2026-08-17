@@ -20,6 +20,33 @@ function nextPaint() {
   });
 }
 
+async function decodeCapture(jpegDataUrl: string) {
+  const image = new Image();
+  image.src = jpegDataUrl;
+  await image.decode();
+  return image;
+}
+
+async function savePageTwoDiagnostic(image: HTMLImageElement) {
+  if (process.env.NODE_ENV !== "development") return;
+  if (!new URLSearchParams(window.location.search).has("pdfCaptureDebug")) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("PDF_CAPTURE_DIAGNOSTIC_CANVAS_UNAVAILABLE");
+  context.drawImage(image, 0, 0);
+
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = `proposal-page-2-capture-${Date.now()}.png`;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export async function downloadProposalPdf(root: HTMLElement, filename: string) {
   const pages = Array.from(root.querySelectorAll<HTMLElement>("[data-pdf-page]"));
   if (pages.length !== 3) throw new Error("PROPOSAL_PAGES_NOT_READY");
@@ -49,6 +76,11 @@ export async function downloadProposalPdf(root: HTMLElement, filename: string) {
         boxShadow: "none",
       },
     });
+
+    const rawCaptureDiagnostic = process.env.NODE_ENV === "development"
+      && new URLSearchParams(window.location.search).has("pdfCaptureRaw");
+    const decodedCapture = rawCaptureDiagnostic ? null : await decodeCapture(image);
+    if (index === 1 && decodedCapture) await savePageTwoDiagnostic(decodedCapture);
 
     if (index > 0) pdf.addPage("a4", "portrait");
     pdf.addImage(image, "JPEG", 0, 0, 210, 297, undefined, "FAST");
