@@ -55,13 +55,15 @@ function ProposalImage({ src, alt, className }: { src?: string; alt: string; cla
 export function ProposalPreview({
   importedProposalData,
   actionLabel = "Сформировать КП",
+  initiallyOpen = false,
 }: {
   importedProposalData?: ProposalData;
   actionLabel?: string;
+  initiallyOpen?: boolean;
 } = {}) {
   const context = useProposalContext();
   const proposalData = importedProposalData ?? context.proposalData;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [previewScale, setPreviewScale] = useState(1);

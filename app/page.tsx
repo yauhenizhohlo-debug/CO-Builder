@@ -2,10 +2,9 @@ import { PurchaseOptions } from "./components/purchase-options";
 import { RoomSelector } from "./components/room-selector";
 import { SelectedRoomProvider } from "./components/selected-room-context";
 import { ProposalProvider } from "./components/proposal-context";
-import { ProposalPreview } from "./components/proposal-preview";
 import { ImportedInventoryContext } from "./components/imported-inventory-context";
 import { ImportedProposalVersion } from "./components/imported-proposal-version";
-import { BuilderShell } from "./components/builder-shell";
+import { BuilderContextPanel, BuilderShell } from "./components/builder-shell";
 import { ThemeProvider } from "./ui/theme-provider";
 
 export default async function Home({searchParams}:{searchParams:Promise<{context?:string;proposalVersion?:string}>}) {
@@ -31,7 +30,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
           </p>
         </div>
 
-        <nav aria-label="Этапы подготовки предложения" className="builder-stagebar mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl lg:grid-cols-4">
+        <nav aria-label="Этапы подготовки предложения" className="builder-stagebar builder-stagebar--classic mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl lg:grid-cols-4">
           {[
             ["01", "Выбор номера", "active"],
             ["02", "Условия покупки", "active"],
@@ -46,12 +45,14 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
         </nav>
 
         <div className="builder-screen min-w-0">
-          <RoomSelector />
-          <div className="builder-payment-column min-w-0 space-y-5">
-            <PurchaseOptions />
-          </div>
-          <aside className="builder-preview-column min-w-0">
-            <ProposalPreview />
+          <main className="builder-workflow min-w-0">
+            <RoomSelector />
+            <div className="builder-payment-column min-w-0 space-y-5">
+              <PurchaseOptions />
+            </div>
+          </main>
+          <aside className="builder-context-panel builder-preview-column min-w-0">
+            <BuilderContextPanel />
           </aside>
         </div>
       </section>

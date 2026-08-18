@@ -173,6 +173,8 @@ input, select, textarea { font: inherit; }
 .builder-topbar__context { display: flex; align-items: center; gap: 0.45rem; }
 .builder-topbar__proposal-action { display: none; }
 
+.builder-step-navigation { display: none; }
+
 .theme-control { display: flex; align-items: center; gap: 0.45rem; }
 .theme-control__label { color: var(--ui-text-muted); font-size: 0.5rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 
@@ -199,13 +201,76 @@ input, select, textarea { font: inherit; }
   gap: 1.25rem;
 }
 
+.builder-workflow { display: contents; }
 .room-selector { grid-area: unit; }
 .builder-payment-column { grid-area: payment; }
 .builder-preview-column { grid-area: preview; }
 .proposal-card__enterprise { display: none; }
 
 /* Enterprise Light is a scoped presentation layer over the existing Builder. */
+.product-theme[data-theme="enterprise-light"] .builder-shell { display: block; }
+.product-theme[data-theme="enterprise-light"] .builder-sidebar { display: none; }
+.product-theme[data-theme="enterprise-light"] .builder-main { min-height: 100vh; }
+.product-theme[data-theme="enterprise-light"] .builder-topbar {
+  min-height: 3.75rem;
+  padding: 0.55rem max(1.25rem, calc((100vw - 1680px) / 2 + 2rem));
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+}
+.product-theme[data-theme="enterprise-light"] .builder-topbar__brand { display: flex; align-items: baseline; gap: 0.65rem; }
+.product-theme[data-theme="enterprise-light"] .builder-topbar__kicker { order: 2; font-size: 0.55rem; }
+.product-theme[data-theme="enterprise-light"] .builder-topbar__title { margin: 0; font-size: 0.9rem; }
+.product-theme[data-theme="enterprise-light"] .builder-topbar__actions { gap: 0.55rem; }
 .product-theme[data-theme="enterprise-light"] .builder-topbar__proposal-action { display: inline-flex; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation {
+  position: sticky;
+  top: 3.75rem;
+  z-index: 25;
+  display: block;
+  overflow-x: auto;
+  border-bottom: 1px solid #dfe3e7;
+  background: rgba(247, 248, 250, 0.96);
+  scrollbar-width: none;
+  backdrop-filter: blur(14px);
+}
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation::-webkit-scrollbar { display: none; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__inner {
+  display: grid;
+  width: min(100%, 1680px);
+  margin: 0 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 2rem;
+}
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item {
+  position: relative;
+  display: flex;
+  min-height: 2.9rem;
+  align-items: center;
+  gap: 0.6rem;
+  border: 0;
+  background: transparent;
+  padding: 0.6rem 0.8rem;
+  color: #68707a;
+  text-align: left;
+  cursor: pointer;
+}
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item::after {
+  position: absolute;
+  right: 0.8rem;
+  bottom: -1px;
+  left: 0.8rem;
+  height: 2px;
+  background: transparent;
+  content: "";
+}
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item span { color: #94a3b8; font-size: 0.58rem; letter-spacing: 0.12em; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item strong { font-size: 0.72rem; font-weight: 550; white-space: nowrap; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item:hover { color: #20242a; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item.is-active { color: #1d4ed8; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item.is-active::after { background: #2563eb; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item.is-active span { color: #2563eb; }
+.product-theme[data-theme="enterprise-light"] .builder-step-navigation__item:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.22); outline-offset: -3px; }
+.product-theme[data-theme="enterprise-light"] .builder-stagebar--classic { display: none; }
 .product-theme[data-theme="enterprise-light"] .builder-page-heading { margin-bottom: 1.25rem; }
 .product-theme[data-theme="enterprise-light"] .builder-content__title {
   max-width: none;
@@ -225,16 +290,24 @@ input, select, textarea { font: inherit; }
 .product-theme[data-theme="enterprise-light"] .builder-stagebar__item span:first-child { color: #2563eb; }
 
 .product-theme[data-theme="enterprise-light"] .builder-screen {
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 23rem);
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.34fr);
   grid-template-areas:
     "unit preview"
     "payment preview";
-  gap: 1rem;
+  gap: 1.25rem;
+}
+.product-theme[data-theme="enterprise-light"] .builder-workflow {
+  display: contents;
 }
 .product-theme[data-theme="enterprise-light"] .builder-preview-column {
   position: sticky;
-  top: 5.5rem;
+  top: 7.65rem;
 }
+.product-theme[data-theme="enterprise-light"] .room-selector,
+.product-theme[data-theme="enterprise-light"] .purchase-configuration,
+.product-theme[data-theme="enterprise-light"] .mortgage-configuration,
+.product-theme[data-theme="enterprise-light"] .payment-calculation,
+.product-theme[data-theme="enterprise-light"] .mortgage-calculation { scroll-margin-top: 8rem; }
 .product-theme[data-theme="enterprise-light"] .builder-payment-column {
   display: grid;
   gap: 0;
@@ -409,6 +482,23 @@ input, select, textarea { font: inherit; }
 .product-theme[data-theme="enterprise-light"] .builder-content .proposal-card__action { border: 1px solid #cfd5dc; border-radius: 0.5rem; background: #fff !important; color: #20242a !important; }
 .product-theme[data-theme="enterprise-light"] .builder-content .proposal-card__action:hover { border-color: #94a3b8; background: #f8fafc !important; }
 
+.builder-context-card {
+  border: 1px solid #dfe3e7;
+  border-radius: 0.625rem;
+  background: #fff;
+  padding: 1.15rem;
+  color: #20242a;
+}
+.builder-context-card__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.builder-context-card__header p { margin: 0; color: #68707a; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.builder-context-card h2 { margin: 0.75rem 0 0; font-size: 1.25rem; font-weight: 650; letter-spacing: -0.025em; }
+.builder-context-card__primary { margin: 0.45rem 0 0; color: #111827; font-size: 1.75rem; font-weight: 650; letter-spacing: -0.045em; }
+.builder-context-panel__rows { margin: 1rem 0 0; border-top: 1px solid #e5e7eb; }
+.builder-context-panel__rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #edf0f2; padding: 0.68rem 0; }
+.builder-context-panel__rows dt { color: #68707a; font-size: 0.68rem; }
+.builder-context-panel__rows dd { margin: 0; color: #20242a; text-align: right; font-size: 0.74rem; font-weight: 600; }
+.builder-context-card__action { width: 100%; margin-top: 1rem; }
+
 .product-theme[data-theme="classic"] .builder-content { color: #f4f1eb; }
 .product-theme[data-theme="classic"] .builder-content__title { color: #f4f1eb; }
 .product-theme[data-theme="classic"] .builder-content__intro { color: #a8a29e; }
@@ -423,12 +513,19 @@ input, select, textarea { font: inherit; }
   .builder-topbar__actions > .ui-badge { display: none; }
   .builder-topbar__context { display: none; }
   .theme-control__label { display: none; }
-  .builder-screen,
-  .product-theme[data-theme="enterprise-light"] .builder-screen {
+  .builder-screen {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "unit" "payment" "preview";
   }
+  .product-theme[data-theme="enterprise-light"] .builder-screen { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+  .product-theme[data-theme="enterprise-light"] .builder-workflow { display: contents; }
+  .product-theme[data-theme="enterprise-light"] .room-selector { grid-area: auto; grid-column: 1; grid-row: 1; }
+  .product-theme[data-theme="enterprise-light"] .builder-payment-column { grid-area: auto; grid-column: 1; grid-row: 2; }
+  .product-theme[data-theme="enterprise-light"] .builder-preview-column { grid-area: auto; grid-column: 1; grid-row: 3; }
+  .product-theme[data-theme="enterprise-light"] .builder-shell[data-active-step="1"] .builder-preview-column { grid-row: 2; }
+  .product-theme[data-theme="enterprise-light"] .builder-shell[data-active-step="1"] .builder-payment-column { grid-row: 3; }
   .product-theme[data-theme="enterprise-light"] .builder-preview-column { position: static; }
+  .product-theme[data-theme="enterprise-light"] .builder-step-navigation__inner { min-width: 42rem; padding: 0 1rem; }
 }
 
 @media (max-width: 560px) {
@@ -438,6 +535,20 @@ input, select, textarea { font: inherit; }
   .theme-control { flex: 1; min-width: 0; }
   .theme-toggle { width: 100%; }
   .theme-toggle__button { flex: 1; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar { position: relative; min-height: auto; padding: 0.55rem 0.8rem; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar { align-items: center; flex-direction: row; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__brand { display: block; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__kicker { display: none; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__context { display: flex; min-width: 0; overflow: hidden; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__context .ui-badge:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__context .ui-badge:last-child { display: none; }
+  .product-theme[data-theme="enterprise-light"] .builder-topbar__proposal-action { min-height: 2.35rem; flex: none; }
+  .product-theme[data-theme="enterprise-light"] .builder-step-navigation { position: relative; top: auto; }
+  .product-theme[data-theme="enterprise-light"] .builder-step-navigation__inner { min-width: 38rem; padding: 0 0.4rem; }
+  .product-theme[data-theme="enterprise-light"] .builder-content { padding-right: 0.8rem; padding-left: 0.8rem; padding-top: 1.25rem; }
+  .product-theme[data-theme="enterprise-light"] .builder-page-heading { margin-bottom: 1rem; }
+  .product-theme[data-theme="enterprise-light"] .builder-content__intro { display: none; }
 }
 
 .font-serif { font-family: Georgia, "Times New Roman", serif; }
