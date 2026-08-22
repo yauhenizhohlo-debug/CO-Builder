@@ -5,6 +5,7 @@ import {
   calculateTrancheMortgage,
   type MortgageTrancheInput,
 } from "../lib/calculate-tranche-mortgage";
+import { calculateDiscount, type DiscountInput } from "../lib/calculate-discount";
 import { useProposalContext } from "./proposal-context";
 import { useSelectedRoom } from "./selected-room-context";
 
@@ -48,26 +49,30 @@ function distributeLoan(loanAmount: number, count: TrancheCount): MortgageTranch
   });
 }
 
-export function MortgageOptions() {
+export function MortgageOptions({ discount }: { discount: DiscountInput }) {
   const room = useSelectedRoom();
   const { setProposalData } = useProposalContext();
   const [transactionDate, setTransactionDate] = useState(todayIso);
-  const [initialPayment, setInitialPayment] = useState(() => Math.round(room.price * 0.3));
+  const dealPrice = useMemo(
+    () => calculateDiscount(room.price, discount).discountedPrice,
+    [room.price, discount],
+  );
+  const [initialPayment, setInitialPayment] = useState(() => Math.round(dealPrice * 0.3));
   const [rateProgram, setRateProgram] = useState<RateProgram>("base");
   const [baseRate, setBaseRate] = useState(19.2);
   const [customRate, setCustomRate] = useState(18);
   const [termYears, setTermYears] = useState(30);
   const [trancheCount, setTrancheCount] = useState<TrancheCount>(2);
-  const loanAmount = Math.max(0, room.price - initialPayment);
+  const loanAmount = Math.max(0, dealPrice - initialPayment);
   const [tranches, setTranches] = useState<MortgageTrancheInput[]>(() =>
-    distributeLoan(Math.max(0, room.price - Math.round(room.price * 0.3)), 2),
+    distributeLoan(Math.max(0, dealPrice - Math.round(dealPrice * 0.3)), 2),
   );
   const annualRate = rateProgram === "base" ? baseRate : customRate;
 
   useEffect(() => {
-    const nextInitialPayment = Math.round(room.price * 0.3);
+    const nextInitialPayment = Math.round(dealPrice * 0.3);
     setInitialPayment(nextInitialPayment);
-  }, [room.price]);
+  }, [dealPrice]);
 
   useEffect(() => {
     setTranches(distributeLoan(loanAmount, trancheCount));
@@ -76,13 +81,14 @@ export function MortgageOptions() {
   const result = useMemo(
     () => calculateTrancheMortgage({
       price: room.price,
+      discount,
       initialPayment,
       annualRate,
       termMonths: termYears * 12,
       transactionDate,
       tranches,
     }),
-    [room.price, initialPayment, annualRate, termYears, transactionDate, tranches],
+    [room.price, discount, initialPayment, annualRate, termYears, transactionDate, tranches],
   );
 
   useEffect(() => {
@@ -125,10 +131,10 @@ export function MortgageOptions() {
             <input
               type="number"
               min="0"
-              max={room.price}
+              max={dealPrice}
               step="10000"
               value={initialPayment}
-              onChange={(event) => setInitialPayment(Math.min(room.price, Math.max(0, Number(event.target.value) || 0)))}
+              onChange={(event) => setInitialPayment(Math.min(dealPrice, Math.max(0, Number(event.target.value) || 0)))}
               className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
             />
           </label>
@@ -142,7 +148,7 @@ export function MortgageOptions() {
               value={Number(result.initialPaymentPercent.toFixed(2))}
               onChange={(event) => {
                 const percent = Math.min(100, Math.max(0, Number(event.target.value) || 0));
-                setInitialPayment(Math.round(room.price * percent / 100));
+                setInitialPayment(Math.round(dealPrice * percent / 100));
               }}
               className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950/30 px-3 py-3 text-base text-stone-100 outline-none transition focus:border-amber-200/50 sm:text-sm"
             />
@@ -286,6 +292,8 @@ export function MortgageOptions() {
 
         <dl className="mt-6 grid grid-cols-2 gap-2">
           {[
+            ["Цена по прайсу", formatCurrency(result.basePrice)],
+            ["Скидка", `${formatPercent(result.discountPercent)}% · ${formatCurrency(result.discountAmount)}`],
             ["Стоимость объекта", formatCurrency(result.price)],
             ["Первоначальный взнос", `${formatCurrency(result.initialPayment)} · ${formatPercent(result.initialPaymentPercent)}%`],
             ["Сумма кредита", formatCurrency(result.loanAmount)],

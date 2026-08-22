@@ -119,6 +119,7 @@ export function ProposalPreview({
   const pdfFilename = `${financingLabel} номер ${room?.roomNumber.replace(/^№/, "") ?? ""} ПВ ${formatPercent(initialPaymentPercent)}%.pdf`;
   const initialPayment = installment?.initialPayment ?? mortgage?.initialPayment;
   const regularPayment = installment?.monthlyPayment ?? mortgage?.stages[0]?.monthlyPayment;
+  const proposalPrice = installment?.discountedPrice ?? mortgage?.price ?? room?.price;
   const proposalReady = Boolean(
     proposalData
     && (proposalData.financingType !== "mortgage" || proposalData.mortgage.isBalanced),
@@ -173,7 +174,7 @@ export function ProposalPreview({
             </div>
             <div className="proposal-document-surface__price">
               <span>Стоимость объекта</span>
-              <strong>{room ? formatCurrency(room.price) : "—"}</strong>
+              <strong>{proposalPrice !== undefined ? formatCurrency(proposalPrice) : "—"}</strong>
             </div>
             <dl className="proposal-document-surface__summary">
               <div><dt>Схема оплаты</dt><dd>{proposalData ? financingLabel : "—"}</dd></div>
@@ -251,7 +252,7 @@ export function ProposalPreview({
                     </dl>
                     <div className="mt-auto border-l-2 border-[#aa8551] bg-[#e9dfcf] px-4 py-4">
                       <p className="text-[8px] uppercase tracking-[0.2em] text-[#7d6748]">Полная стоимость</p>
-                      <p className="mt-2 font-serif text-[27px] leading-none">{formatCurrency(room.price)}</p>
+                      <p className="mt-2 font-serif text-[27px] leading-none">{formatCurrency(proposalPrice ?? room.price)}</p>
                       <p className="mt-4 text-[8px] uppercase tracking-[0.16em] text-stone-500">Первоначальный взнос от</p>
                       <p className="mt-1 text-sm font-semibold">{formatCurrency(installment?.initialPayment ?? mortgage?.initialPayment ?? 0)}</p>
                     </div>

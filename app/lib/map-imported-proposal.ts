@@ -98,6 +98,9 @@ function mapMortgageResult(
   const initialPayment = rubles(result.downPayment);
 
   return {
+    basePrice: price,
+    discountPercent: 0,
+    discountAmount: 0,
     price,
     initialPayment,
     initialPaymentPercent: price > 0 ? initialPayment / price * 100 : 0,
@@ -157,6 +160,6 @@ export function mapImportedProposal(context: ProposalContext): ProposalData {
       ),
     };
   }
-  if(context.payment.mode==="MORTGAGE"){const result=context.payment.result as ImportedMortgageResult;const price=rubles(result.purchasePrice),initialPayment=rubles(result.downPayment);return{room,financingType:"mortgage",mortgageKind:"standard",standardMonthlyPayment:rubles(result.monthlyPayment),mortgage:{price,initialPayment,initialPaymentPercent:price>0?initialPayment/price*100:0,loanAmount:rubles(result.loanAmount),annualRate:Number(result.annualRatePercent),termMonths:result.loanTermMonths,termYears:result.loanTermMonths/12,trancheTotal:rubles(result.loanAmount),difference:0,isBalanced:result.validationMessages.length===0,validationMessages:result.validationMessages,stages:[],schedule:[],remainingBalance:0,totalInterest:rubles(result.overpayment),totalPayments:rubles(result.totalPayment)}}}
+  if(context.payment.mode==="MORTGAGE"){const result=context.payment.result as ImportedMortgageResult;const price=rubles(result.purchasePrice),initialPayment=rubles(result.downPayment);return{room,financingType:"mortgage",mortgageKind:"standard",standardMonthlyPayment:rubles(result.monthlyPayment),mortgage:{basePrice:price,discountPercent:0,discountAmount:0,price,initialPayment,initialPaymentPercent:price>0?initialPayment/price*100:0,loanAmount:rubles(result.loanAmount),annualRate:Number(result.annualRatePercent),termMonths:result.loanTermMonths,termYears:result.loanTermMonths/12,trancheTotal:rubles(result.loanAmount),difference:0,isBalanced:result.validationMessages.length===0,validationMessages:result.validationMessages,stages:[],schedule:[],remainingBalance:0,totalInterest:rubles(result.overpayment),totalPayments:rubles(result.totalPayment)}}}
   throw new Error("UNSUPPORTED_IMPORTED_PAYMENT_MODE");
 }

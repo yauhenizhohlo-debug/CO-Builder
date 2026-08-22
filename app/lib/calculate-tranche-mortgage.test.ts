@@ -102,6 +102,56 @@ test("one, two and three tranches share the same schedule engine", () => {
   }
 });
 
+test("discount is applied once before the down payment, principal and tranche schedule", () => {
+  const basePrice = 20_000_000;
+  const dealPrice = 19_400_000;
+  const initialPayment = 5_820_000;
+  const loanAmount = 13_580_000;
+
+  for (const tranches of [
+    [{ id: "one", amount: loanAmount, issueMonth: 0 }],
+    [
+      { id: "one", amount: 4_074_000, issueMonth: 0 },
+      { id: "two", amount: 9_506_000, issueMonth: 24 },
+    ],
+    [
+      { id: "one", amount: 2_716_000, issueMonth: 0 },
+      { id: "two", amount: 4_074_000, issueMonth: 24 },
+      { id: "three", amount: 6_790_000, issueMonth: 48 },
+    ],
+  ]) {
+    const result = calculateTrancheMortgage({
+      ...controlCase,
+      price: basePrice,
+      discount: { mode: "percent", value: 3 },
+      initialPayment,
+      tranches,
+    });
+
+    assert.equal(result.basePrice, basePrice);
+    assert.equal(result.discountPercent, 3);
+    assert.equal(result.discountAmount, 600_000);
+    assert.equal(result.price, dealPrice);
+    assert.equal(result.initialPayment, initialPayment);
+    assert.equal(result.initialPaymentPercent, 30);
+    assert.equal(result.loanAmount, loanAmount);
+    assert.equal(result.trancheTotal, loanAmount);
+    assert.equal(result.isBalanced, true);
+    assert.equal(result.stages.length, tranches.length);
+    assert.ok(result.stages.every((stage) => stage.monthlyPayment > 0));
+  }
+});
+
+test("zero discount preserves the existing tranche mortgage result", () => {
+  const implicitZero = calculateTrancheMortgage(controlCase);
+  const explicitZero = calculateTrancheMortgage({
+    ...controlCase,
+    discount: { mode: "percent", value: 0 },
+  });
+
+  assert.deepEqual(explicitZero, implicitZero);
+});
+
 test("published second-stage rows cannot be derived exactly from the supplied rounded balance", () => {
   const suppliedOpeningBalance = 3_946_351 + 10_000_000;
   const impliedDays = 226_792 * 365 / (suppliedOpeningBalance * 0.192);

@@ -1,3 +1,5 @@
+import { calculateDiscount, type DiscountInput } from "./calculate-discount.ts";
+
 export type MortgageTrancheInput = {
   id: string;
   amount: number;
@@ -6,6 +8,7 @@ export type MortgageTrancheInput = {
 
 export type TrancheMortgageInput = {
   price: number;
+  discount?: DiscountInput;
   initialPayment: number;
   annualRate: number;
   termMonths: number;
@@ -38,6 +41,9 @@ export type MortgageStage = {
 };
 
 export type TrancheMortgageResult = {
+  basePrice: number;
+  discountPercent: number;
+  discountAmount: number;
   price: number;
   initialPayment: number;
   initialPaymentPercent: number;
@@ -115,13 +121,19 @@ export function calculateAnnuityPayment(
 
 export function calculateTrancheMortgage({
   price,
+  discount,
   initialPayment,
   annualRate,
   termMonths,
   transactionDate,
   tranches,
 }: TrancheMortgageInput): TrancheMortgageResult {
-  const safePrice = Math.max(0, price);
+  const safeBasePrice = Math.max(0, price);
+  const discountResult = calculateDiscount(
+    safeBasePrice,
+    discount ?? { mode: "percent", value: 0 },
+  );
+  const safePrice = discountResult.discountedPrice;
   const safeInitialPayment = Math.min(safePrice, Math.max(0, initialPayment));
   const safeRate = Math.max(0, annualRate);
   const safeTermMonths = Math.max(1, Math.round(termMonths));
@@ -241,6 +253,9 @@ export function calculateTrancheMortgage({
   });
 
   return {
+    basePrice: safeBasePrice,
+    discountPercent: discountResult.discountPercent,
+    discountAmount: discountResult.discountAmount,
     price: safePrice,
     initialPayment: safeInitialPayment,
     initialPaymentPercent: safePrice > 0 ? safeInitialPayment / safePrice * 100 : 0,

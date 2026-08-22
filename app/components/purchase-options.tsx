@@ -54,7 +54,11 @@ const todayIso = () => {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 };
 
-function InstallmentOptions() {
+function InstallmentOptions({
+  onDiscountChange,
+}: {
+  onDiscountChange: (discount: { mode: DiscountMode; value: number }) => void;
+}) {
   const room = useSelectedRoom();
   const { setProposalData } = useProposalContext();
   const [planId, setPlanId] = useState<PlanId>("15");
@@ -82,6 +86,10 @@ function InstallmentOptions() {
       : { mode: "percent" as const, value: Number(discountOption) },
     [discountOption, customDiscount.discountAmount],
   );
+
+  useEffect(() => {
+    onDiscountChange(discount);
+  }, [discount, onDiscountChange]);
   const firstPeriodPaymentDates = useMemo(
     () => getFirstPeriodPaymentDates(transactionDate),
     [transactionDate],
@@ -368,6 +376,10 @@ function InstallmentOptions() {
 
 export function PurchaseOptions() {
   const [financingType, setFinancingType] = useState<"installment" | "mortgage">("installment");
+  const [mortgageDiscount, setMortgageDiscount] = useState<{ mode: DiscountMode; value: number }>({
+    mode: "percent",
+    value: 1,
+  });
 
   return (
     <>
@@ -391,7 +403,9 @@ export function PurchaseOptions() {
         </div>
       </section>
 
-      {financingType === "installment" ? <InstallmentOptions /> : <MortgageOptions />}
+      {financingType === "installment"
+        ? <InstallmentOptions onDiscountChange={setMortgageDiscount} />
+        : <MortgageOptions discount={mortgageDiscount} />}
     </>
   );
 }
