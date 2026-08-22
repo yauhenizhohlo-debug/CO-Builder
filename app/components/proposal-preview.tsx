@@ -18,6 +18,7 @@ const currency = new Intl.NumberFormat("ru-RU", {
 const formatCurrency = (value: number) => currency.format(value);
 const formatPercent = (value: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 }).format(value);
+const formatYears = (years: number) => `${years} ${years === 1 ? "год" : years < 5 ? "года" : "лет"}`;
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -109,6 +110,7 @@ export function ProposalPreview({
   const renderSet = room ? getRenderSetById(room.renderSetId) : undefined;
   const installment = proposalData?.financingType === "installment" ? proposalData.installment : undefined;
   const mortgage = proposalData?.financingType === "mortgage" ? proposalData.mortgage : undefined;
+  const refinance = proposalData?.financingType === "mortgage" ? proposalData.refinance : undefined;
   const standardMortgage=proposalData?.financingType==="mortgage"&&proposalData.mortgageKind==="standard";
   const standardMonthlyPayment=proposalData?.financingType==="mortgage"?proposalData.standardMonthlyPayment:undefined;
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
@@ -417,6 +419,24 @@ export function ProposalPreview({
                       ))}
                     </ol>}
                   </div>
+
+                  {refinance?.enabled && refinance.isValid && (
+                    <div className="mt-5 border border-[#b59463] bg-[#e9dfcf] px-4 py-3">
+                      <p className="text-[7px] uppercase tracking-[0.16em] text-[#9a7747]">Рефинансирование через {formatYears(refinance.refinanceAfterMonths / 12)}</p>
+                      <dl className="mt-3 grid grid-cols-3 gap-3">
+                        {[
+                          ["Остаток долга", formatCurrency(refinance.outstandingPrincipal ?? 0)],
+                          ["Предполагаемая ставка", `${formatPercent(refinance.assumedAnnualRate)}%`],
+                          ["Новый платёж", `${formatCurrency(refinance.paymentAfterRefinance ?? 0)} / мес.`],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt className="text-[7px] uppercase tracking-[0.1em] text-stone-500">{label}</dt>
+                            <dd className="mt-1 text-[12px] font-medium">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  )}
 
                   <div className="mt-7 border border-[#d0c5b5] bg-[#faf8f4] p-4">
                     <p className="text-[7px] leading-4 text-stone-500">Предварительный расчёт {standardMortgage?"стандартной":"траншевой"} ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.</p>

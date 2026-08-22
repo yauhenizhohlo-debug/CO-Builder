@@ -6,6 +6,7 @@ import type { Room } from "../data/rooms";
 import type { PaymentScheduleItem } from "../lib/build-payment-schedule";
 import type { InstallmentResult } from "../lib/calculate-installment";
 import type { TrancheMortgageResult } from "../lib/calculate-tranche-mortgage";
+import type { RefinanceCalculation } from "../lib/refinance-types";
 
 export type InstallmentProposalData = {
   room: Room;
@@ -18,6 +19,7 @@ export type MortgageProposalData = {
   room: Room;
   financingType: "mortgage";
   mortgage: TrancheMortgageResult;
+  refinance?: RefinanceCalculation;
   mortgageKind?:"tranche"|"standard";
   standardMonthlyPayment?:number;
 };

@@ -6,6 +6,7 @@ import {
   type MortgageTrancheInput,
 } from "../lib/calculate-tranche-mortgage";
 import { calculateDiscount, type DiscountInput } from "../lib/calculate-discount";
+import { calculateRefinance } from "../lib/calculate-refinance";
 import { useProposalContext } from "./proposal-context";
 import { useSelectedRoom } from "./selected-room-context";
 
@@ -28,6 +29,7 @@ const formatDate = (date: string) =>
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
+const formatYears = (years: number) => `${years} ${years === 1 ? "год" : years < 5 ? "года" : "лет"}`;
 
 const todayIso = () => {
   const now = new Date();
@@ -63,6 +65,9 @@ export function MortgageOptions({ discount }: { discount: DiscountInput }) {
   const [customRate, setCustomRate] = useState(18);
   const [termYears, setTermYears] = useState(30);
   const [trancheCount, setTrancheCount] = useState<TrancheCount>(2);
+  const [refinanceEnabled, setRefinanceEnabled] = useState(false);
+  const [refinanceAfterYears, setRefinanceAfterYears] = useState(2);
+  const [refinanceRate, setRefinanceRate] = useState(10);
   const loanAmount = Math.max(0, dealPrice - initialPayment);
   const [tranches, setTranches] = useState<MortgageTrancheInput[]>(() =>
     distributeLoan(Math.max(0, dealPrice - Math.round(dealPrice * 0.3)), 2),
@@ -91,9 +96,25 @@ export function MortgageOptions({ discount }: { discount: DiscountInput }) {
     [room.price, discount, initialPayment, annualRate, termYears, transactionDate, tranches],
   );
 
+  const refinance = useMemo(
+    () => calculateRefinance({
+      enabled: refinanceEnabled,
+      refinanceAfterMonths: refinanceAfterYears * 12,
+      assumedAnnualRate: refinanceRate,
+      transactionDate,
+      mortgage: result,
+    }),
+    [refinanceEnabled, refinanceAfterYears, refinanceRate, transactionDate, result],
+  );
+
   useEffect(() => {
-    setProposalData({ room, financingType: "mortgage", mortgage: result });
-  }, [room, result, setProposalData]);
+    setProposalData({
+      room,
+      financingType: "mortgage",
+      mortgage: result,
+      refinance: refinance.enabled ? refinance : undefined,
+    });
+  }, [room, result, refinance, setProposalData]);
 
   const updateTranche = (
     index: number,
@@ -284,6 +305,72 @@ export function MortgageOptions({ discount }: { discount: DiscountInput }) {
             </p>
           </div>
         </div>
+
+        <div className="mt-6 border-t border-white/10 pt-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-stone-200">Рефинансирование</p>
+              <p className="mt-1 text-[10px] leading-4 text-stone-600">Предварительный сценарий после выдачи ипотеки</p>
+            </div>
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-stone-300">
+              <input
+                type="checkbox"
+                checked={refinanceEnabled}
+                onChange={(event) => setRefinanceEnabled(event.target.checked)}
+                className="size-4 accent-amber-100"
+              />
+              Рассчитать
+            </label>
+          </div>
+
+          {refinanceEnabled && (
+            <div className="mt-4 rounded-xl border border-white/10 bg-stone-950/30 p-4">
+              <p className="text-[10px] text-stone-500">Рефинансирование через</p>
+              <div className="mt-2 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Срок до рефинансирования">
+                {[1, 2, 3, 5].map((years) => (
+                  <button
+                    key={years}
+                    type="button"
+                    role="radio"
+                    aria-checked={refinanceAfterYears === years}
+                    onClick={() => setRefinanceAfterYears(years)}
+                    className={`min-h-11 rounded-lg border px-2 text-xs transition ${refinanceAfterYears === years ? "border-amber-200/60 bg-amber-100/[0.09] text-amber-100" : "border-white/10 text-stone-500"}`}
+                  >
+                    {formatYears(years)}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-4 block">
+                <span className="text-xs text-stone-500">Предполагаемая ставка, %</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={refinanceRate}
+                  onChange={(event) => setRefinanceRate(Math.min(100, Math.max(0, Number(event.target.value) || 0)))}
+                  className="mt-2 min-h-12 w-full rounded-lg border border-white/10 bg-stone-900 px-3 py-3 text-base text-stone-100 outline-none focus:border-amber-200/50 sm:text-sm"
+                />
+              </label>
+
+              {refinance.isValid ? (
+                <dl className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg bg-white/[0.03] p-3">
+                    <dt className="text-[10px] text-stone-600">Остаток долга к {formatDate(refinance.refinanceDate ?? transactionDate)}</dt>
+                    <dd className="mt-1 text-sm text-stone-100">{formatCurrency(refinance.outstandingPrincipal ?? 0)}</dd>
+                  </div>
+                  <div className="rounded-lg bg-white/[0.03] p-3">
+                    <dt className="text-[10px] text-stone-600">Новый платёж</dt>
+                    <dd className="mt-1 text-sm text-amber-50">{formatCurrency(refinance.paymentAfterRefinance ?? 0)} / мес.</dd>
+                  </div>
+                </dl>
+              ) : (
+                <p role="alert" className="mt-4 text-xs leading-5 text-amber-100">{refinance.validationMessages.join(" ")}</p>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="mortgage-calculation panel p-6" aria-labelledby="mortgage-calculation-heading">
@@ -334,6 +421,22 @@ export function MortgageOptions({ discount }: { discount: DiscountInput }) {
             </li>
           ))}
         </ol>
+
+        {refinance.enabled && refinance.isValid && (
+          <div className="mt-7 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-stone-500">Рефинансирование через {formatYears(refinance.refinanceAfterMonths / 12)}</p>
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <dt className="text-[10px] text-stone-600">Остаток долга</dt>
+                <dd className="mt-1 text-sm text-stone-100">{formatCurrency(refinance.outstandingPrincipal ?? 0)}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-stone-600">Новый платёж · {formatPercent(refinance.assumedAnnualRate)}%</dt>
+                <dd className="mt-1 text-sm text-amber-50">{formatCurrency(refinance.paymentAfterRefinance ?? 0)} / мес.</dd>
+              </div>
+            </dl>
+          </div>
+        )}
 
         <p className="mt-7 text-[10px] leading-5 text-stone-600">
           Предварительный расчёт траншевой ипотеки. Финальные условия кредитования, процентная ставка, размер платежа и решение о выдаче кредита определяются банком.
