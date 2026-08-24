@@ -1,5 +1,7 @@
 # Inventory context integration
 
+Access mode: **`PILOT_OPEN_ACCESS`**. The browser UI has no Basic Auth challenge. Builder still fetches ProposalContext only through its server route and `PROPOSAL_BUILDER_TOKEN`; direct Inventory context access remains bearer-only. `robots` metadata stays `noindex, nofollow, nocache`.
+
 ## Request flow
 
 1. Inventory creates an immutable `ProposalContext` schema v2. Builder keeps read compatibility with schema v1.
