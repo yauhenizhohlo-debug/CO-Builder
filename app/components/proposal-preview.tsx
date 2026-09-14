@@ -99,7 +99,20 @@ export function ProposalPreview({
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
+    const previousTitle = document.title;
+    const roomNumber = room?.roomNumber.replace(/^№/, "") ?? "номер";
+    const pv = installment?.initialPaymentPercent ?? mortgage?.initialPaymentPercent ?? 0;
+
+    document.title = `КП Cosmos №${roomNumber} ПВ ${pv}%`;
+
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+
+    window.addEventListener("afterprint", restoreTitle);
     window.print();
+    setTimeout(restoreTitle, 1500);
   };
 
   return (
