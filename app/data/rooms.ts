@@ -42,7 +42,7 @@ const inventory: Array<Omit<Room, "layoutId" | "renderSetId">> = [
   { roomNumber: "422", floor: 4, area: 38, pricePerSqm: 587000, price: 22306000 },
   { roomNumber: "425", floor: 4, area: 43.5, pricePerSqm: 581000, price: 25273500 },
   { roomNumber: "428", floor: 4, area: 37.9, pricePerSqm: 595000, price: 22550500 },
-  { roomNumber: "437п", floor: 4, area: 25.9, pricePerSqm: 580000, price: 15022000 },
+  { roomNumber: "437п", floor: 4, area: 25.9, pricePerSqm: 610000, price: 15799000 },
 
   { roomNumber: "301", floor: 3, area: 33.6, pricePerSqm: 690000, price: 23184000 },
   { roomNumber: "№304", floor: 3, area: 38, pricePerSqm: 645000, price: 24510000 },
