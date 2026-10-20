@@ -9,6 +9,14 @@ import {
 import { calculateDiscount } from "../lib/calculate-discount";
 import type { DiscountMode } from "../lib/calculate-discount";
 import { calculateInstallment } from "../lib/calculate-installment";
+import {
+  balanceCustomSchedule,
+  getDefaultBalancerId,
+  toEditableSchedule,
+  type EditablePayment,
+  type ScheduleBalanceMode,
+} from "../lib/custom-payment-schedule";
+import { CustomPaymentScheduleEditor } from "./custom-payment-schedule-editor";
 import { useSelectedRoom } from "./selected-room-context";
 import { useProposalContext } from "./proposal-context";
 import { MortgageOptions } from "./mortgage-options";
@@ -67,6 +75,10 @@ function InstallmentOptions() {
   const [customInitialPayment, setCustomInitialPayment] = useState(30);
   const [customMonthlyPayment, setCustomMonthlyPayment] = useState(100000);
   const [transactionDate, setTransactionDate] = useState(todayIso);
+  const [scheduleMode, setScheduleMode] = useState<"standard" | "custom">("standard");
+  const [customSchedule, setCustomSchedule] = useState<EditablePayment[]>([]);
+  const [customBalanceMode, setCustomBalanceMode] = useState<ScheduleBalanceMode>("auto");
+  const [customBalancerId, setCustomBalancerId] = useState<string | null>(null);
 
   const plan = plans.find((item) => item.id === planId) ?? plans[0];
   const isCustom = planId === "custom";
@@ -105,10 +117,19 @@ function InstallmentOptions() {
     ],
   );
 
-  const schedule = useMemo(
+  const standardSchedule = useMemo(
     () => buildPaymentSchedule(transactionDate, result, firstPeriodPaymentDates),
     [transactionDate, result, firstPeriodPaymentDates],
   );
+  const balancedCustomSchedule = useMemo(
+    () => balanceCustomSchedule(customSchedule, result.discountedPrice, {
+      mode: customBalanceMode,
+      balancerId: customBalancerId,
+    }),
+    [customSchedule, result.discountedPrice, customBalanceMode, customBalancerId],
+  );
+  const customScheduleValidation = balancedCustomSchedule.validation;
+  const schedule = scheduleMode === "custom" ? customScheduleValidation.schedule : standardSchedule;
 
   const summary = [
     ["Скидка", `${formatPercent(result.discountPercent)}% · ${formatCurrency(result.discountAmount)}`],
@@ -122,8 +143,27 @@ function InstallmentOptions() {
   ];
 
   useEffect(() => {
-    setProposalData({ room, financingType: "installment", installment: result, schedule });
-  }, [room, result, schedule, setProposalData]);
+    setProposalData({
+      room,
+      financingType: "installment",
+      installment: result,
+      schedule,
+      scheduleMode,
+      scheduleBalanceMode: scheduleMode === "custom" ? customBalanceMode : undefined,
+      scheduleBalancerId: scheduleMode === "custom" ? balancedCustomSchedule.balancerId : undefined,
+      scheduleValidationErrors: scheduleMode === "custom" ? customScheduleValidation.errors : [],
+    });
+  }, [room, result, schedule, scheduleMode, customBalanceMode, balancedCustomSchedule.balancerId, customScheduleValidation.errors, setProposalData]);
+
+  const chooseScheduleMode = (mode: "standard" | "custom") => {
+    if (mode === "custom" && customSchedule.length === 0) {
+      const next = toEditableSchedule(standardSchedule);
+      setCustomSchedule(next);
+      setCustomBalancerId(getDefaultBalancerId(next));
+      setCustomBalanceMode("auto");
+    }
+    setScheduleMode(mode);
+  };
 
   const selectPlan = (nextPlan: (typeof plans)[number]) => {
     setPlanId(nextPlan.id);
@@ -324,12 +364,32 @@ function InstallmentOptions() {
           ))}
         </dl>
 
+        <div className="mt-7 rounded-xl border border-white/10 bg-stone-950/25 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-stone-200">График платежей</p>
+              <p className="mt-1 text-[10px] leading-4 text-stone-500">Стандартный расчёт остаётся без изменений. Индивидуальный график используется в preview и PDF.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1" role="radiogroup" aria-label="Тип графика платежей">
+              {([[
+                "standard", "Стандартный",
+              ], ["custom", "Индивидуальный"]] as const).map(([mode, label]) => (
+                <button key={mode} type="button" role="radio" aria-checked={scheduleMode === mode} onClick={() => chooseScheduleMode(mode)} className={`min-h-11 rounded-md px-3 text-[10px] transition ${scheduleMode === mode ? "bg-amber-100 text-stone-950" : "text-stone-500 hover:text-stone-300"}`}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {scheduleMode === "custom" && (
+            <div className="mt-4"><CustomPaymentScheduleEditor rows={customSchedule} expectedTotal={result.discountedPrice} balanceMode={customBalanceMode} balancerId={customBalancerId} onRowsChange={setCustomSchedule} onBalanceModeChange={setCustomBalanceMode} onBalancerChange={setCustomBalancerId} defaultDate={transactionDate} /></div>
+          )}
+        </div>
+
         <div className="mt-7 overflow-hidden rounded-xl border border-white/10">
           <div className="grid grid-cols-[78px_1fr] gap-3 border-b border-white/10 bg-stone-950/35 px-3 py-2.5 text-[9px] uppercase tracking-[0.12em] text-stone-600">
             <span>Дата</span>
             <span>Платёж · сумма · накоплено</span>
           </div>
-          <ol className="max-h-[620px] overflow-y-auto">
+          <ol className="max-h-[620px] overflow-y-auto" aria-label={scheduleMode === "custom" ? "Предпросмотр индивидуального графика" : "Стандартный график платежей"}>
             {schedule.map((payment) => {
               const isTopUp = payment.type === "top-up";
               const isFinal = payment.type === "final";

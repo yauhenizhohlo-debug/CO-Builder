@@ -6,17 +6,22 @@
     "dev": "next dev",
     "build:contract": "tsc packages/proposal-contract/src/index.ts --target ES2022 --module ES2022 --moduleResolution bundler --outDir packages/proposal-contract/dist",
     "prebuild": "npm run build:contract",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:mortgage": "node --experimental-strip-types --test app/lib/calculate-tranche-mortgage.test.ts",
-    "test:integration": "node --experimental-strip-types --test app/lib/validate-imported-context.test.ts"
+    "test:integration": "node --experimental-strip-types --test app/lib/validate-imported-context.test.ts",
+    "test:one-page": "node --conditions=react-server --experimental-strip-types --test app/lib/price-overrides.test.ts app/lib/one-page.test.ts app/lib/custom-payment-schedule.test.ts app/lib/proposal-snapshot.test.ts app/lib/persistence.test.ts app/lib/admin-auth.test.ts app/lib/api-security.test.ts",
+    "test": "npm run test:mortgage && npm run test:integration && npm run test:one-page"
   },
   "dependencies": {
     "@cosmos/proposal-contract": "file:packages/proposal-contract",
+    "html-to-image": "1.11.13",
+    "jspdf": "4.2.1",
     "next": "16.1.6",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.1",

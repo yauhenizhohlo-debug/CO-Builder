@@ -60,8 +60,11 @@ const inventory: Array<Omit<Room, "layoutId" | "renderSetId">> = [
   { roomNumber: "224", floor: 2, area: 38.2, pricePerSqm: 575000, price: 21965000 },
 ];
 
-export const rooms: Room[] = inventory.map((room) => ({
+export const baseRooms: Room[] = inventory.map((room) => ({
   ...room,
   layoutId: getLayoutIdForRoom(room.roomNumber),
   renderSetId: getRenderSetIdForRoom(room.roomNumber),
 }));
+
+/** Base inventory for legacy/imported flows. Runtime price overrides are applied server-side. */
+export const rooms = baseRooms;

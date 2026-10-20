@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
+import { regularPaymentSummary } from "../lib/custom-payment-schedule";
 import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
 
@@ -55,6 +56,13 @@ export function ProposalPreview({
   const context = useProposalContext();
   const proposalData = importedProposalData ?? context.proposalData;
   const [isOpen, setIsOpen] = useState(false);
+  const [snapshotMessage, setSnapshotMessage] = useState("");
+
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener("open-full-proposal", open);
+    return () => window.removeEventListener("open-full-proposal", open);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -76,6 +84,14 @@ export function ProposalPreview({
   const installment = proposalData?.financingType === "installment" ? proposalData.installment : undefined;
   const mortgage = proposalData?.financingType === "mortgage" ? proposalData.mortgage : undefined;
   const schedule = proposalData?.financingType === "installment" ? proposalData.schedule : [];
+  const scheduleMode = proposalData?.financingType === "installment" ? proposalData.scheduleMode ?? "standard" : "standard";
+  const scheduleErrors = proposalData?.financingType === "installment" ? proposalData.scheduleValidationErrors ?? [] : [];
+  const customInitialPayment = scheduleMode === "custom" ? schedule.find((payment) => payment.type === "initial")?.amount : undefined;
+  const displayedInitialPayment = customInitialPayment ?? installment?.initialPayment ?? mortgage?.initialPayment ?? 0;
+  const displayedInitialPercent = installment && installment.discountedPrice > 0
+    ? displayedInitialPayment / installment.discountedPrice * 100
+    : mortgage?.initialPaymentPercent ?? 0;
+  const customRegularPayment = scheduleMode === "custom" ? regularPaymentSummary(schedule) : null;
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
 
   const handlePrint = async () => {
@@ -101,7 +117,7 @@ export function ProposalPreview({
 
     const previousTitle = document.title;
     const roomNumber = room?.roomNumber.replace(/^№/, "") ?? "номер";
-    const pv = installment?.initialPaymentPercent ?? mortgage?.initialPaymentPercent ?? 0;
+    const pv = displayedInitialPercent;
 
     document.title = `КП Cosmos №${roomNumber} ПВ ${pv}%`;
 
@@ -115,6 +131,24 @@ export function ProposalPreview({
     setTimeout(restoreTitle, 1500);
   };
 
+  const handleSaveSnapshot = async () => {
+    if (!proposalData) return;
+    setSnapshotMessage("");
+    const response = await fetch("/api/proposal-snapshots", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(proposalData),
+    });
+    const result: unknown = await response.json().catch(() => null);
+    if (response.ok && result && typeof result === "object" && "snapshot" in result) {
+      const snapshot = result.snapshot;
+      const id = snapshot && typeof snapshot === "object" && "id" in snapshot ? String(snapshot.id) : "";
+      setSnapshotMessage(`Snapshot сохранён${id ? `: ${id}` : ""}`);
+    } else {
+      setSnapshotMessage("Не удалось сохранить snapshot");
+    }
+  };
+
   return (
     <>
       <section className="panel p-6" aria-labelledby="offer-heading">
@@ -125,7 +159,7 @@ export function ProposalPreview({
         </p>
         <button
           type="button"
-          disabled={!proposalData || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
+          disabled={!proposalData || scheduleErrors.length > 0 || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
           onClick={() => setIsOpen(true)}
           className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -143,6 +177,9 @@ export function ProposalPreview({
                   <p className="mt-1 text-xs text-stone-500">Номер {room.roomNumber.replace(/^№/, "")}</p>
                 </div>
                 <div className="flex gap-2">
+                  <button type="button" onClick={handleSaveSnapshot} className="relative z-10 rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">
+                    Сохранить snapshot
+                  </button>
                   <button type="button" onClick={handlePrint} className="relative z-10 rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50">
                     Сохранить PDF
                   </button>
@@ -151,6 +188,7 @@ export function ProposalPreview({
                   </button>
                 </div>
               </div>
+              {snapshotMessage ? <p role="status" className="mx-auto mt-2 max-w-[794px] text-xs text-amber-100">{snapshotMessage}</p> : null}
             </div>
 
             <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
@@ -182,7 +220,7 @@ export function ProposalPreview({
                       <p className="text-[8px] uppercase tracking-[0.2em] text-[#7d6748]">Полная стоимость</p>
                       <p className="mt-2 font-serif text-[27px] leading-none">{formatCurrency(room.price)}</p>
                       <p className="mt-4 text-[8px] uppercase tracking-[0.16em] text-stone-500">Первоначальный взнос от</p>
-                      <p className="mt-1 text-sm font-semibold">{formatCurrency(installment?.initialPayment ?? mortgage?.initialPayment ?? 0)}</p>
+                      <p className="mt-1 text-sm font-semibold">{formatCurrency(displayedInitialPayment)}</p>
                     </div>
                   </div>
                   <div className="relative min-h-[360px] overflow-hidden rounded-sm bg-stone-200">
@@ -215,7 +253,7 @@ export function ProposalPreview({
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
                     ["Скидка", `${formatPercent(installment.discountPercent)}% · ${formatCurrency(installment.discountAmount)}`],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
-                    ["Условия", `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
+                    ["Условия", scheduleMode === "custom" ? "Индивидуальный график" : `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
                   ].map(([label, value]) => (
                     <div key={label} className="border-l border-[#ddd5c9] pl-3 first:border-l-0 first:pl-0">
                       <dt className="text-[7px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</dt>
@@ -224,7 +262,7 @@ export function ProposalPreview({
                   ))}
                 </dl>
 
-                <div className="mt-4 grid grid-cols-5 gap-1.5">
+                {scheduleMode === "standard" ? <><div className="mt-4 grid grid-cols-5 gap-1.5">
                   {[
                     ["01", "Первоначальный взнос", formatCurrency(installment.initialPayment), `${installment.initialPaymentPercent}% от стоимости`],
                     ["02", "До контрольной даты", `${installment.firstPeriodPaymentCount} × ${formatCurrency(installment.monthlyPayment)}`, `Всего ${formatCurrency(installment.paymentsBeforeTopUp)}`],
@@ -260,12 +298,27 @@ export function ProposalPreview({
                       </li>
                     ))}
                   </ol>
-                </div>
+                </div></> : <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="border border-[#b59463] bg-[#e9dfcf] p-3">
+                    <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Первоначальный взнос</p>
+                    <p className="mt-2 font-serif text-[18px]">{formatCurrency(displayedInitialPayment)}</p>
+                    <p className="mt-1 text-[7px] text-stone-500">{formatPercent(displayedInitialPercent)}% от стоимости</p>
+                  </div>
+                  <div className="border border-[#d8d0c4] bg-[#faf8f4] p-3">
+                    <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Регулярные платежи</p>
+                    {customRegularPayment ? <><p className="mt-2 font-serif text-[18px]">{formatCurrency(customRegularPayment.amount)}</p><p className="mt-1 text-[7px] text-stone-500">{customRegularPayment.count} одинаковых платежей</p></> : <p className="mt-2 font-serif text-[16px]">Индивидуальный график</p>}
+                  </div>
+                  <div className="border border-[#d8d0c4] bg-[#faf8f4] p-3">
+                    <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Всего этапов</p>
+                    <p className="mt-2 font-serif text-[18px]">{schedule.length}</p>
+                    <p className="mt-1 text-[7px] text-stone-500">Полный график ниже</p>
+                  </div>
+                </div>}
 
                 <div className="mt-3 min-h-0 flex-1">
                   <div className="flex items-end justify-between border-b border-[#9f9688] pb-2">
                     <div>
-                      <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">Персональный график</p>
+                      <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">{scheduleMode === "custom" ? "Индивидуальный график" : "Персональный график"}</p>
                       <h3 className="mt-1 font-serif text-[23px] leading-none">Календарь платежей</h3>
                     </div>
                     <p className="text-[7px] text-stone-400">Все платежи в хронологическом порядке</p>

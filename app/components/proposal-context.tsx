@@ -6,12 +6,17 @@ import type { Room } from "../data/rooms";
 import type { PaymentScheduleItem } from "../lib/build-payment-schedule";
 import type { InstallmentResult } from "../lib/calculate-installment";
 import type { TrancheMortgageResult } from "../lib/calculate-tranche-mortgage";
+import type { ScheduleBalanceMode } from "../lib/custom-payment-schedule";
 
 export type InstallmentProposalData = {
   room: Room;
   financingType: "installment";
   installment: InstallmentResult;
   schedule: PaymentScheduleItem[];
+  scheduleMode?: "standard" | "custom";
+  scheduleBalanceMode?: ScheduleBalanceMode;
+  scheduleBalancerId?: string | null;
+  scheduleValidationErrors?: string[];
 };
 
 export type MortgageProposalData = {

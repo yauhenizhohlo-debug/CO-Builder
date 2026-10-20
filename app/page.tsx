@@ -4,12 +4,15 @@ import { SelectedRoomProvider } from "./components/selected-room-context";
 import { ProposalProvider } from "./components/proposal-context";
 import { ProposalPreview } from "./components/proposal-preview";
 import { ImportedInventoryContext } from "./components/imported-inventory-context";
+import { getCatalogRooms } from "./lib/price-overrides";
+import { OnePageGenerator } from "./components/one-page-generator";
 
 export default async function Home({searchParams}:{searchParams:Promise<{context?:string}>}) {
   const contextId=(await searchParams).context;
   if(contextId)return <ImportedInventoryContext contextId={contextId}/>;
+  const catalogRooms = await getCatalogRooms();
   return (
-    <SelectedRoomProvider>
+    <SelectedRoomProvider initialRooms={catalogRooms}>
       <ProposalProvider>
         <main className="min-h-screen bg-stone-950 text-stone-100">
       <header className="border-b border-white/10 px-5 py-5 lg:px-10">
@@ -64,6 +67,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{context
             <PurchaseOptions />
 
             <ProposalPreview />
+            <OnePageGenerator />
           </aside>
         </div>
       </section>

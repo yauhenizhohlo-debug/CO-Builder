@@ -1,40 +1,43 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { rooms, type Room } from "../data/rooms";
+import { rooms as fallbackRooms, type Room } from "../data/rooms";
 
-const SelectedRoomContext = createContext<Room>(rooms[0]);
+type SelectedRoomContextValue = {
+  rooms: Room[];
+  selectedRoom: Room;
+  selectRoom: (roomNumber: string) => void;
+  updateRoom: (room: Room) => void;
+};
 
-export function SelectedRoomProvider({ children }: { children: ReactNode }) {
-  const [selectedRoom, setSelectedRoom] = useState(rooms[0]);
+const SelectedRoomContext = createContext<SelectedRoomContextValue | null>(null);
 
-  useEffect(() => {
-    const handleRoomSelection = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
+export function SelectedRoomProvider({ children, initialRooms = fallbackRooms }: { children: ReactNode; initialRooms?: Room[] }) {
+  const [catalog, setCatalog] = useState(initialRooms);
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState(initialRooms[0]?.roomNumber ?? fallbackRooms[0].roomNumber);
+  const selectedRoom = catalog.find((room) => room.roomNumber === selectedRoomNumber) ?? catalog[0] ?? fallbackRooms[0];
 
-      const roomCard = target.closest<HTMLButtonElement>("button[aria-pressed]");
-      if (!roomCard) return;
-
-      const visibleNumber = roomCard.querySelector(".font-serif")?.textContent?.trim();
-      const room = rooms.find(
-        (item) => item.roomNumber.replace(/^№/, "") === visibleNumber,
-      );
-      if (room) setSelectedRoom(room);
-    };
-
-    document.addEventListener("click", handleRoomSelection);
-    return () => document.removeEventListener("click", handleRoomSelection);
-  }, []);
+  const updateRoom = (room: Room) => {
+    setCatalog((current) => current.map((item) => item.roomNumber === room.roomNumber ? room : item));
+    setSelectedRoomNumber(room.roomNumber);
+  };
 
   return (
-    <SelectedRoomContext.Provider value={selectedRoom}>
+    <SelectedRoomContext.Provider value={{ rooms: catalog, selectedRoom, selectRoom: setSelectedRoomNumber, updateRoom }}>
       {children}
     </SelectedRoomContext.Provider>
   );
 }
 
 export function useSelectedRoom() {
-  return useContext(SelectedRoomContext);
+  const context = useContext(SelectedRoomContext);
+  if (!context) throw new Error("useSelectedRoom must be used inside SelectedRoomProvider");
+  return context.selectedRoom;
+}
+
+export function useRoomCatalog() {
+  const context = useContext(SelectedRoomContext);
+  if (!context) throw new Error("useRoomCatalog must be used inside SelectedRoomProvider");
+  return context;
 }

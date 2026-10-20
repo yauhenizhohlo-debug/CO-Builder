@@ -4,7 +4,9 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
-import { rooms } from "../data/rooms";
+import type { Room } from "../data/rooms";
+import { useRoomCatalog } from "./selected-room-context";
+import { PriceEditor } from "./price-editor";
 
 const currency = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -13,17 +15,16 @@ const currency = new Intl.NumberFormat("ru-RU", {
 });
 
 const formatCurrency = (value: number) => currency.format(value);
-const floors = [...new Set(rooms.map((room) => room.floor))].sort((a, b) => a - b);
-
 export function RoomSelector() {
+  const { rooms, selectedRoom, selectRoom, updateRoom } = useRoomCatalog();
+  const floors = useMemo(() => [...new Set(rooms.map((room) => room.floor))].sort((a, b) => a - b), [rooms]);
   const [selectedFloor, setSelectedFloor] = useState(7);
   const availableRooms = useMemo(
     () => rooms.filter((room) => room.floor === selectedFloor),
     [selectedFloor],
   );
-  const [selectedRoomNumber, setSelectedRoomNumber] = useState("704");
-  const selectedRoom =
-    availableRooms.find((room) => room.roomNumber === selectedRoomNumber) ?? availableRooms[0];
+  const [editorRoom, setEditorRoom] = useState<Room | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ roomNumber: string; event: "open-full-proposal" | "open-one-page" } | null>(null);
   const selectedLayout = getLayoutById(selectedRoom.layoutId);
   const selectedRenderSet = getRenderSetById(selectedRoom.renderSetId);
   const [failedLayoutId, setFailedLayoutId] = useState<string | null>(null);
@@ -59,6 +60,15 @@ export function RoomSelector() {
     };
   }, [isLayoutOpen, enlargedRenderPath]);
 
+  useEffect(() => {
+    if (!pendingAction || selectedRoom.roomNumber !== pendingAction.roomNumber) return;
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event(pendingAction.event));
+      setPendingAction(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pendingAction, selectedRoom.roomNumber]);
+
   const markRenderAsFailed = (path: string) => {
     setFailedRenderPaths((current) => new Set(current).add(path));
   };
@@ -66,7 +76,17 @@ export function RoomSelector() {
   const selectFloor = (floor: number) => {
     const firstRoom = rooms.find((room) => room.floor === floor);
     setSelectedFloor(floor);
-    if (firstRoom) setSelectedRoomNumber(firstRoom.roomNumber);
+    if (firstRoom) selectRoom(firstRoom.roomNumber);
+  };
+
+  const createFullProposal = (roomNumber: string) => {
+    selectRoom(roomNumber);
+    setPendingAction({ roomNumber, event: "open-full-proposal" });
+  };
+
+  const createOnePage = (roomNumber: string) => {
+    selectRoom(roomNumber);
+    setPendingAction({ roomNumber, event: "open-one-page" });
   };
 
   return (
@@ -116,11 +136,8 @@ export function RoomSelector() {
           {availableRooms.map((room) => {
             const active = selectedRoom.roomNumber === room.roomNumber;
             return (
-              <button
+              <div
                 key={room.roomNumber}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setSelectedRoomNumber(room.roomNumber)}
                 className={`group relative overflow-hidden rounded-xl border p-4 text-left transition ${
                   active
                     ? "border-amber-200/70 bg-amber-100/[0.09] shadow-[0_14px_34px_rgba(0,0,0,0.24)]"
@@ -128,6 +145,7 @@ export function RoomSelector() {
                 }`}
               >
                 {active && <span className="absolute inset-y-0 left-0 w-0.5 bg-amber-200" />}
+                <button type="button" aria-pressed={active} onClick={() => selectRoom(room.roomNumber)} className="w-full text-left">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">Номер</p>
@@ -148,7 +166,13 @@ export function RoomSelector() {
                   </div>
                 </div>
                 <p className="mt-3 text-sm font-medium text-stone-100">{formatCurrency(room.price)}</p>
-              </button>
+                </button>
+                <div className="mt-4 grid gap-1.5 border-t border-white/10 pt-3 text-[10px] sm:grid-cols-3">
+                  <button type="button" onClick={() => createFullProposal(room.roomNumber)} className="min-h-10 rounded-lg border border-white/10 px-2 text-stone-300 hover:border-amber-200/50">Создать КП</button>
+                  <button type="button" onClick={() => createOnePage(room.roomNumber)} className="min-h-10 rounded-lg border border-white/10 px-2 text-stone-300 hover:border-amber-200/50">Создать One Page</button>
+                  <button type="button" onClick={() => { selectRoom(room.roomNumber); setEditorRoom(room); }} className="min-h-10 rounded-lg border border-white/10 px-2 text-stone-500 hover:border-white/30 hover:text-stone-300">Изменить цену</button>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -363,6 +387,7 @@ export function RoomSelector() {
           </div>
         </div>
       )}
+      {editorRoom && <PriceEditor room={editorRoom} open onClose={() => setEditorRoom(null)} onSaved={(updated) => { updateRoom(updated); setEditorRoom(null); }} />}
     </section>
   );
 }
