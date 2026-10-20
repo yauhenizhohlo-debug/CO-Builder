@@ -109,6 +109,15 @@ test("missing Supabase media returns null without masking upstream failures", as
     globalThis.fetch = async () => new Response(JSON.stringify({ message: "Object not found" }), { status: 404 });
     assert.equal(await getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"), null);
 
+    globalThis.fetch = async () => new Response(JSON.stringify({ statusCode: "404", error: "not_found", message: "Object not found", code: "NoSuchKey" }), { status: 400 });
+    assert.equal(await getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"), null);
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ statusCode: "400", error: "invalid_request", message: "Invalid bucket" }), { status: 400 });
+    await assert.rejects(
+      () => getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"),
+      (error: unknown) => error instanceof Error && "status" in error && error.status === 400,
+    );
+
     globalThis.fetch = async () => new Response("temporary outage", { status: 503 });
     await assert.rejects(
       () => getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"),

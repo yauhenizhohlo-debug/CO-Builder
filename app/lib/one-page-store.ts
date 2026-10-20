@@ -43,6 +43,23 @@ function contentType(fileName: string) {
   return extension === ".webp" ? "image/webp" : extension === ".png" ? "image/png" : "image/jpeg";
 }
 
+function isMissingSnapshotObject(error: unknown) {
+  if (!error || typeof error !== "object" || !("status" in error)) return false;
+  if (error.status === 404) return true;
+  if (error.status !== 400 || !("detail" in error) || typeof error.detail !== "string") return false;
+  try {
+    const detail: unknown = JSON.parse(error.detail);
+    return Boolean(
+      detail && typeof detail === "object"
+      && "statusCode" in detail && detail.statusCode === "404"
+      && "error" in detail && detail.error === "not_found"
+      && "code" in detail && detail.code === "NoSuchKey",
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function freezeMediaInSupabase(snapshot: OnePageSnapshot) {
   const hasLayout = Boolean(snapshot.mediaSnapshot.layoutPath);
   const roomRenderCount = snapshot.mediaSnapshot.renderPaths.length;
@@ -108,7 +125,7 @@ export async function getOnePageMedia(id: string, fileName: string) {
       const response = await downloadSnapshotObject(`one-pages/${id}/${fileName}`);
       return { data: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") || contentType(fileName) };
     } catch (error) {
-      if (error && typeof error === "object" && "status" in error && error.status === 404) return null;
+      if (isMissingSnapshotObject(error)) return null;
       throw error;
     }
   }
