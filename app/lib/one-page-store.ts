@@ -104,8 +104,13 @@ export async function getOnePageSnapshot(id: string) {
 export async function getOnePageMedia(id: string, fileName: string) {
   if (!/^[0-9]+\.(jpg|jpeg|png|webp)$/i.test(fileName)) return null;
   if (isSupabasePersistence()) {
-    const response = await downloadSnapshotObject(`one-pages/${id}/${fileName}`);
-    return { data: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") || contentType(fileName) };
+    try {
+      const response = await downloadSnapshotObject(`one-pages/${id}/${fileName}`);
+      return { data: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") || contentType(fileName) };
+    } catch (error) {
+      if (error && typeof error === "object" && "status" in error && error.status === 404) return null;
+      throw error;
+    }
   }
   try {
     return { data: await readFile(localDataPath(path.join("media", id, fileName))), contentType: contentType(fileName) };

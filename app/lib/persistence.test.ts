@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { getOnePageMedia } from "./one-page-store.ts";
 import { getPersistenceMode, getSupabaseServerConfig } from "./persistence-config.ts";
 import { supabaseInsert, supabaseRpc, uploadSnapshotObject } from "./supabase-persistence.ts";
 
@@ -91,5 +92,38 @@ test("Supabase errors retain server detail for domain conflict mapping", async (
     globalThis.fetch = oldFetch;
     if (oldUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = oldUrl;
     if (oldKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = oldKey;
+  }
+});
+
+test("missing Supabase media returns null without masking upstream failures", async () => {
+  const oldFetch = globalThis.fetch;
+  const oldMode = process.env.CO_BUILDER_PERSISTENCE;
+  const oldUrl = process.env.SUPABASE_URL;
+  const oldKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const oldBucket = process.env.SUPABASE_SNAPSHOT_BUCKET;
+  process.env.CO_BUILDER_PERSISTENCE = "supabase";
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "server-secret";
+  process.env.SUPABASE_SNAPSHOT_BUCKET = "co-builder-snapshots";
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ message: "Object not found" }), { status: 404 });
+    assert.equal(await getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"), null);
+
+    globalThis.fetch = async () => new Response("temporary outage", { status: 503 });
+    await assert.rejects(
+      () => getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp"),
+      (error: unknown) => error instanceof Error && "status" in error && error.status === 503,
+    );
+
+    globalThis.fetch = async () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { "content-type": "image/webp" } });
+    const media = await getOnePageMedia("00000000-0000-4000-8000-000000000000", "0.webp");
+    assert.deepEqual(Array.from(media?.data ?? []), [1, 2, 3]);
+    assert.equal(media?.contentType, "image/webp");
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldMode === undefined) delete process.env.CO_BUILDER_PERSISTENCE; else process.env.CO_BUILDER_PERSISTENCE = oldMode;
+    if (oldUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = oldUrl;
+    if (oldKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = oldKey;
+    if (oldBucket === undefined) delete process.env.SUPABASE_SNAPSHOT_BUCKET; else process.env.SUPABASE_SNAPSHOT_BUCKET = oldBucket;
   }
 });
