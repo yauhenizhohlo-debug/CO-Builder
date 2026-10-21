@@ -37,7 +37,7 @@ function paymentSummary(calculation: OnePageCalculation) {
   const uniform = regular.length > 0 && regular.every((payment) => Math.abs(payment.amount - firstAmount) < 0.01);
   const isFullPayment = calculation.initialPayment >= calculation.dealPrice - 0.01;
   return {
-    initialAmount: initial?.amount ?? calculation.initialPayment,
+    initialAmount: calculation.initialPayment,
     regularAmount: uniform ? firstAmount : null,
     regularCount: uniform ? regular.length : 0,
     isIndividual: !uniform && remaining.length > 0,

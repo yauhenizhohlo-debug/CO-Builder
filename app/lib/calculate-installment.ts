@@ -1,5 +1,4 @@
-import { calculateDiscount } from "./calculate-discount";
-import type { DiscountInput } from "./calculate-discount";
+import { calculateDiscount, type DiscountInput } from "./calculate-discount.ts";
 
 export type InstallmentInput = {
   price: number;

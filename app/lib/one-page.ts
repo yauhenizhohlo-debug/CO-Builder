@@ -1,4 +1,5 @@
 import { calculateDiscount, type DiscountInput } from "./calculate-discount.ts";
+import { calculateInstallment } from "./calculate-installment.ts";
 import type { PaymentScheduleItem } from "./build-payment-schedule.ts";
 import type { Room } from "../data/rooms.ts";
 import { balanceCustomSchedule, getDefaultBalancerId, type ScheduleBalanceMode } from "./custom-payment-schedule.ts";
@@ -49,6 +50,38 @@ export type OnePageCalculation = {
   errors: string[];
 };
 
+export function synchronizeCalculatedSchedule(
+  schedule: PaymentScheduleItem[],
+  dealPrice: number,
+  initialPayment: number,
+): OnePagePayment[] {
+  const firstPeriod = schedule.filter((payment) => payment.type === "regular-first");
+  const regularPayment = firstPeriod[0]?.amount
+    ?? schedule.find((payment) => payment.type === "regular-second")?.amount
+    ?? 0;
+  const installment = calculateInstallment({
+    price: dealPrice,
+    initialPaymentPercent: dealPrice > 0 ? initialPayment / dealPrice * 100 : 0,
+    monthlyPayment: regularPayment,
+    discount: { mode: "percent", value: 0 },
+    firstPeriodPaymentCount: firstPeriod.length,
+  });
+
+  return schedule.map(({ id, date, label, amount, type }) => ({
+    id,
+    date,
+    label,
+    type,
+    amount: type === "initial"
+      ? initialPayment
+      : type === "top-up"
+        ? installment.topUpPayment
+        : type === "final"
+          ? installment.finalPayment
+          : amount,
+  }));
+}
+
 export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   const errors: string[] = [];
   const offerPrice = draft.individualPrice === null ? draft.basePrice : draft.individualPrice;
@@ -70,7 +103,7 @@ export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   }
   const source = draft.paymentMode === "custom"
     ? balancedCustom.rows
-    : draft.calculatedSchedule.map((row) => ({ id: row.id, date: row.date, label: row.label, amount: row.amount }));
+    : synchronizeCalculatedSchedule(draft.calculatedSchedule, discount.discountedPrice, initialPayment);
   const payments = source.map((row) => ({ ...row, amount: Number(row.amount) }));
   if (payments.some((row) => !Number.isFinite(row.amount) || row.amount < 0)) errors.push("Платежи не могут быть отрицательными");
   if (draft.guaranteedIncome !== null && (!(draft.guaranteedIncome > 0) || !draft.guaranteedIncomeSource.trim())) {
@@ -84,7 +117,6 @@ export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   } else if (Math.abs(difference) > 0.01) {
     errors.push("Сумма платежей не соответствует итоговой стоимости");
   }
-  if (draft.paymentMode === "calculated" && payments.length > 0 && Math.abs(payments[0].amount - initialPayment) > 0.01) errors.push("ПВ не соответствует выбранному расчётному графику");
   return {
     basePrice: draft.basePrice,
     offerPrice,
