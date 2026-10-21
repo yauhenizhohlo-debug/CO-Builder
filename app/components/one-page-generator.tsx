@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { selectProjectRenders } from "../data/project-renders";
 import { getRenderSetById } from "../data/render-sets";
-import { calculateOnePage, type OnePageDraft, type OnePageFormat, type OnePageTemplate } from "../lib/one-page";
+import { bridgeProposalPaymentsToOnePage, calculateOnePage, switchOnePagePaymentMode, type OnePageDraft, type OnePageFormat, type OnePageTemplate } from "../lib/one-page";
 import { getDefaultBalancerId, type EditablePayment } from "../lib/custom-payment-schedule";
 import { CustomPaymentScheduleEditor } from "./custom-payment-schedule-editor";
 import { OnePageDocument } from "./one-page-document";
@@ -51,16 +51,24 @@ function initialDraft(room: ReturnType<typeof useSelectedRoom>, proposal: Return
   const layout = getLayoutById(room.layoutId);
   const renders = getRenderSetById(room.renderSetId)?.imagePaths ?? [];
   const installment = proposal?.financingType === "installment" && proposal.room.roomNumber === room.roomNumber ? proposal : null;
+  const paymentBridge = installment
+    ? bridgeProposalPaymentsToOnePage(installment)
+    : {
+        paymentMode: "custom" as const,
+        calculatedSchedule: [],
+        customPayments: [],
+        customScheduleBalanceMode: "auto" as const,
+        customScheduleBalancerId: null,
+        scenarioLabel: "Свободный график",
+      };
   const projectRenderPaths = selectProjectRenders(`${room.roomNumber}:0`).map((item) => item.imagePath);
   return {
     room: structuredClone(room), basePrice: room.price, individualPrice: null,
     discount: { mode: "percent", value: installment?.installment.discountPercent ?? 0 },
     initialPaymentMode: "percent", initialPaymentValue: installment?.installment.initialPaymentPercent ?? 15,
-    paymentMode: installment ? "calculated" : "custom",
-    calculatedSchedule: installment?.schedule ?? [],
-    customPayments: [], customScheduleBalanceMode: "auto", customScheduleBalancerId: null,
+    ...paymentBridge,
     specialConditions: "", guaranteedIncome: null, guaranteedIncomeSource: "",
-    managerName: "", managerPhone: "", specialistContacts: emptySpecialistContacts(), specialistContactsMode: "none", scenarioLabel: installment ? "Рассрочка" : "Свободный график",
+    managerName: "", managerPhone: "", specialistContacts: emptySpecialistContacts(), specialistContactsMode: "none",
     template: "ivory", format: "a4", layoutPath: layout?.imagePath ?? null, renderPaths: renders.slice(0, 1), projectRenderPaths,
   };
 }
@@ -106,7 +114,7 @@ export function OnePageGenerator() {
   const editablePayments: EditablePayment[] = draft.customPayments.map((payment) => ({ ...payment, type: payment.type ?? "regular-first" }));
   const updateCustomPayments = (rows: EditablePayment[]) => set("customPayments", rows.map(({ id, date, label, amount, type }) => ({ id, date, label, amount, type })));
   const choosePaymentMode = (mode: OnePageDraft["paymentMode"]) => {
-    setDraft((current) => ({ ...current, paymentMode: mode, scenarioLabel: mode === "custom" ? "Свободный график" : "Рассрочка" }));
+    setDraft((current) => switchOnePagePaymentMode(current, mode));
   };
   const startEmptyFreeSchedule = () => {
     const first: EditablePayment = { id: crypto.randomUUID(), date: "", label: "Первый этап", amount: 0, type: "initial" };

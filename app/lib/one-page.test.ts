@@ -5,7 +5,9 @@ import path from "node:path";
 import test from "node:test";
 import { projectRenders, selectProjectRenders } from "../data/project-renders.ts";
 import { baseRooms } from "../data/rooms.ts";
-import { calculateOnePage, createOnePageSnapshot, type OnePageDraft, type OnePageTemplate } from "./one-page.ts";
+import { buildPaymentSchedule, getFirstPeriodPaymentDates } from "./build-payment-schedule.ts";
+import { calculateInstallment } from "./calculate-installment.ts";
+import { bridgeProposalPaymentsToOnePage, calculateOnePage, createOnePageSnapshot, switchOnePagePaymentMode, type OnePageDraft, type OnePageTemplate } from "./one-page.ts";
 import { getOnePageSnapshot, saveOnePageSnapshot } from "./one-page-store.ts";
 
 const room = baseRooms.find((item) => item.roomNumber === "437п")!;
@@ -182,6 +184,71 @@ test("switching a calculated schedule to custom keeps manual rows and auto-balan
   assert.equal(result.payments[2].amount, 11_750_000);
   assert.equal(result.scheduledTotal, result.dealPrice);
   assert.equal(result.isBalanced, true);
+});
+
+test("Full Proposal free schedule opens in One Page without mixing standard mode", () => {
+  const freeSchedule = [
+    { id: "free-first", date: "2026-12-15", label: "Первый этап", amount: 2_500_000, type: "initial" as const, cumulativeAmount: 2_500_000 },
+    { id: "free-balance", date: "2029-05-20", label: "Остаток", amount: 12_983_020, type: "final" as const, cumulativeAmount: 15_483_020 },
+  ];
+  const standardSchedule = [
+    { id: "standard-first", date: "2026-10-21", label: "Первоначальный взнос", amount: 2_322_453, type: "initial" as const, cumulativeAmount: 2_322_453 },
+    { id: "standard-final", date: "2028-06-30", label: "Финальный платёж", amount: 13_160_567, type: "final" as const, cumulativeAmount: 15_483_020 },
+  ];
+  const bridge = bridgeProposalPaymentsToOnePage({
+    schedule: freeSchedule,
+    standardSchedule,
+    scheduleMode: "custom",
+    scheduleBalanceMode: "auto",
+    scheduleBalancerId: "free-balance",
+  });
+  const value = { ...draft("ivory"), discount: { mode: "percent" as const, value: 2 }, ...bridge };
+  const result = calculateOnePage(value);
+
+  assert.equal(value.paymentMode, "custom");
+  assert.deepEqual(value.customPayments.map(({ id, date, amount }) => ({ id, date, amount })), [
+    { id: "free-first", date: "2026-12-15", amount: 2_500_000 },
+    { id: "free-balance", date: "2029-05-20", amount: 12_983_020 },
+  ]);
+  assert.equal(result.dealPrice, 15_483_020);
+  assert.equal(result.scheduledTotal, 15_483_020);
+  assert.equal(result.isBalanced, true);
+});
+
+test("Full Proposal standard schedule opens in calculated One Page mode", () => {
+  const transactionDate = "2026-10-21";
+  const firstPeriodPaymentDates = getFirstPeriodPaymentDates(transactionDate);
+  const installment = calculateInstallment({
+    price: room.price,
+    initialPaymentPercent: 15,
+    monthlyPayment: 150_000,
+    discount: { mode: "percent", value: 2 },
+    firstPeriodPaymentCount: firstPeriodPaymentDates.length,
+  });
+  const standardSchedule = buildPaymentSchedule(transactionDate, installment, firstPeriodPaymentDates);
+  const bridge = bridgeProposalPaymentsToOnePage({ schedule: standardSchedule, standardSchedule, scheduleMode: "standard" });
+  const value = { ...draft("ivory"), discount: { mode: "percent" as const, value: 2 }, ...bridge };
+  const result = calculateOnePage(value);
+
+  assert.equal(value.paymentMode, "calculated");
+  assert.equal(value.customPayments.length, 0);
+  assert.equal(result.scheduledTotal, result.dealPrice);
+  assert.equal(result.isBalanced, true);
+});
+
+test("free to standard to free mode switch preserves independent schedules", () => {
+  const initial = draft("obsidian");
+  initial.calculatedSchedule = [
+    { id: "standard", date: "2028-06-30", label: "Стандартный финальный", amount: 15_641_010, type: "final", cumulativeAmount: 15_641_010 },
+  ];
+  const customBefore = structuredClone(initial.customPayments);
+  const standard = switchOnePagePaymentMode(initial, "calculated");
+  const restoredFree = switchOnePagePaymentMode(standard, "custom");
+
+  assert.equal(standard.paymentMode, "calculated");
+  assert.equal(standard.calculatedSchedule[0].id, "standard");
+  assert.deepEqual(restoredFree.customPayments, customBefore);
+  assert.equal(restoredFree.scenarioLabel, "Свободный график");
 });
 
 test("snapshot preserves free-schedule manual stages after an individual-price change", () => {

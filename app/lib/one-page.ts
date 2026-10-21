@@ -53,6 +53,57 @@ export type OnePageCalculation = {
   errors: string[];
 };
 
+export type OnePagePaymentBridgeInput = {
+  schedule: PaymentScheduleItem[];
+  standardSchedule?: PaymentScheduleItem[];
+  scheduleMode?: "standard" | "custom";
+  scheduleBalanceMode?: ScheduleBalanceMode;
+  scheduleBalancerId?: string | null;
+};
+
+export type OnePagePaymentBridge = Pick<
+  OnePageDraft,
+  | "paymentMode"
+  | "calculatedSchedule"
+  | "customPayments"
+  | "customScheduleBalanceMode"
+  | "customScheduleBalancerId"
+  | "scenarioLabel"
+>;
+
+const cloneSchedule = (schedule: PaymentScheduleItem[]) =>
+  schedule.map((payment) => ({ ...payment }));
+
+export function bridgeProposalPaymentsToOnePage(input: OnePagePaymentBridgeInput): OnePagePaymentBridge {
+  const isCustom = input.scheduleMode === "custom";
+  const standardSchedule = cloneSchedule(input.standardSchedule ?? (isCustom ? [] : input.schedule));
+  const customPayments = isCustom ? cloneSchedule(input.schedule) : [];
+  const requestedBalancerId = input.scheduleBalancerId ?? null;
+  const customScheduleBalancerId = customPayments.some((payment) => payment.id === requestedBalancerId)
+    ? requestedBalancerId
+    : getDefaultBalancerId(customPayments);
+
+  return {
+    paymentMode: isCustom ? "custom" : "calculated",
+    calculatedSchedule: standardSchedule,
+    customPayments,
+    customScheduleBalanceMode: isCustom ? input.scheduleBalanceMode ?? "auto" : "auto",
+    customScheduleBalancerId: isCustom ? customScheduleBalancerId : null,
+    scenarioLabel: isCustom ? "Свободный график" : "Рассрочка",
+  };
+}
+
+export function switchOnePagePaymentMode(
+  draft: OnePageDraft,
+  paymentMode: OnePageDraft["paymentMode"],
+): OnePageDraft {
+  return {
+    ...draft,
+    paymentMode,
+    scenarioLabel: paymentMode === "custom" ? "Свободный график" : "Рассрочка",
+  };
+}
+
 export function synchronizeCalculatedSchedule(
   schedule: PaymentScheduleItem[],
   dealPrice: number,

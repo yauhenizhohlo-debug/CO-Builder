@@ -14,6 +14,7 @@ export type InstallmentProposalData = {
   financingType: "installment";
   installment: InstallmentResult;
   schedule: PaymentScheduleItem[];
+  standardSchedule?: PaymentScheduleItem[];
   scheduleMode?: "standard" | "custom";
   scheduleBalanceMode?: ScheduleBalanceMode;
   scheduleBalancerId?: string | null;

@@ -151,12 +151,13 @@ function InstallmentOptions() {
       financingType: "installment",
       installment: result,
       schedule,
+      standardSchedule,
       scheduleMode,
       scheduleBalanceMode: scheduleMode === "custom" ? customBalanceMode : undefined,
       scheduleBalancerId: scheduleMode === "custom" ? balancedCustomSchedule.balancerId : undefined,
       scheduleValidationErrors: scheduleMode === "custom" ? customScheduleValidation.errors : [],
     });
-  }, [room, result, schedule, scheduleMode, customBalanceMode, balancedCustomSchedule.balancerId, customScheduleValidation.errors, setProposalData]);
+  }, [room, result, schedule, standardSchedule, scheduleMode, customBalanceMode, balancedCustomSchedule.balancerId, customScheduleValidation.errors, setProposalData]);
 
   const chooseScheduleMode = (mode: "standard" | "custom") => {
     setScheduleMode(mode);
