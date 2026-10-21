@@ -3,6 +3,7 @@ import { calculateInstallment } from "./calculate-installment.ts";
 import type { PaymentScheduleItem } from "./build-payment-schedule.ts";
 import type { Room } from "../data/rooms.ts";
 import { balanceCustomSchedule, getDefaultBalancerId, type ScheduleBalanceMode } from "./custom-payment-schedule.ts";
+import { emptySpecialistContacts, normalizeSpecialistContacts, specialistContactsError, type SpecialistContacts } from "./specialist-contacts.ts";
 
 export type OnePageTemplate = "ivory" | "obsidian" | "mission-control" | "industrial" | "liquid-glass";
 // `social` is retained for historical snapshots created before One Page v3.
@@ -27,6 +28,7 @@ export type OnePageDraft = {
   guaranteedIncomeSource: string;
   managerName: string;
   managerPhone: string;
+  specialistContacts?: SpecialistContacts;
   scenarioLabel: string;
   template: OnePageTemplate;
   format: OnePageFormat;
@@ -109,6 +111,8 @@ export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   if (draft.guaranteedIncome !== null && (!(draft.guaranteedIncome > 0) || !draft.guaranteedIncomeSource.trim())) {
     errors.push("Для гарантированного дохода нужны подтверждённая сумма и источник данных");
   }
+  const contactsError = specialistContactsError(draft.specialistContacts ?? emptySpecialistContacts());
+  if (contactsError) errors.push(contactsError);
   const scheduledTotal = payments.reduce((sum, row) => sum + Math.max(0, row.amount), 0);
   const expectedTotal = draft.paymentMode === "custom" ? expectedCustomTotal : discount.discountedPrice;
   const difference = Math.round((scheduledTotal - expectedTotal) * 100) / 100;
@@ -139,7 +143,7 @@ export type OnePageSnapshot = {
   calculationVersion: "one-page-v1";
   roomSnapshot: Room;
   commercialSnapshot: OnePageCalculation;
-  contentSnapshot: Pick<OnePageDraft, "specialConditions" | "guaranteedIncome" | "guaranteedIncomeSource" | "managerName" | "managerPhone" | "scenarioLabel">;
+  contentSnapshot: Pick<OnePageDraft, "specialConditions" | "guaranteedIncome" | "guaranteedIncomeSource" | "managerName" | "managerPhone" | "scenarioLabel"> & { specialistContacts?: SpecialistContacts };
   mediaSnapshot: { layoutPath: string | null; renderPaths: string[]; projectRenderPaths: string[] };
   template: OnePageTemplate;
   format: OnePageFormat;
@@ -161,6 +165,7 @@ export function createOnePageSnapshot(draft: OnePageDraft, id = crypto.randomUUI
       guaranteedIncomeSource: draft.guaranteedIncomeSource,
       managerName: draft.managerName,
       managerPhone: draft.managerPhone,
+      specialistContacts: draft.specialistContacts ? normalizeSpecialistContacts(draft.specialistContacts) : undefined,
       scenarioLabel: draft.scenarioLabel,
     },
     mediaSnapshot: { layoutPath: draft.layoutPath, renderPaths: [...draft.renderPaths], projectRenderPaths: [...draft.projectRenderPaths] },

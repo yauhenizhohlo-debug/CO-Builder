@@ -3,6 +3,7 @@ import "server-only";
 import type { ProposalData } from "../components/proposal-context.tsx";
 import type { OnePageDraft } from "./one-page.ts";
 import { ApiRequestError, assertSafeJson } from "./api-security.ts";
+import { normalizeSpecialistContacts, specialistContactsError } from "./specialist-contacts.ts";
 
 const allowedMediaPath = /^\/(?:layouts|renders|project-renders)\/[a-zA-Z0-9._/-]+$/;
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,12 +30,25 @@ function validRoom(value: unknown) {
     && typeof room.renderSetId === "string" && room.renderSetId.length <= 80;
 }
 
+function validContacts(value: unknown) {
+  if (value === undefined) return true;
+  const contacts = record(value);
+  if (![contacts.firstName, contacts.lastName, contacts.agency, contacts.phone].every((field) => typeof field === "string")) return false;
+  const normalized = normalizeSpecialistContacts(contacts);
+  return contacts.firstName === normalized.firstName
+    && contacts.lastName === normalized.lastName
+    && contacts.agency === normalized.agency
+    && contacts.phone === normalized.phone
+    && !specialistContactsError(normalized);
+}
+
 export function validateProposalData(value: unknown): ProposalData {
   assertSafeJson(value);
   const proposal = record(value);
   if (!validRoom(proposal.room) || (proposal.financingType !== "installment" && proposal.financingType !== "mortgage")) {
     throw new ApiRequestError("INVALID_REQUEST", 400);
   }
+  if (!validContacts(proposal.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
   if (proposal.financingType === "installment") {
     const installment = record(proposal.installment);
     if (![installment.listPrice, installment.discountPercent, installment.discountAmount, installment.discountedPrice, installment.initialPaymentPercent,
@@ -75,6 +89,7 @@ export function validateOnePageDraft(value: unknown): OnePageDraft {
   assertSafeJson(value);
   const draft = record(value);
   if (!validRoom(draft.room) || !finitePositive(draft.basePrice)) throw new ApiRequestError("INVALID_REQUEST", 400);
+  if (!validContacts(draft.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
   if (draft.layoutPath !== null && (typeof draft.layoutPath !== "string" || !allowedMediaPath.test(draft.layoutPath) || draft.layoutPath.includes(".."))) {
     throw new ApiRequestError("INVALID_MEDIA_PATH", 400);
   }

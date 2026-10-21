@@ -2,6 +2,7 @@
 
 import { forwardRef } from "react";
 import type { OnePageCalculation, OnePageDraft, OnePageFormat, OnePageTemplate } from "../lib/one-page";
+import { hasSpecialistContacts, normalizeSpecialistContacts, specialistFullName } from "../lib/specialist-contacts";
 
 const money = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
@@ -55,6 +56,15 @@ export const OnePageDocument = forwardRef<HTMLDivElement, { draft: OnePageDraft;
   const scale = format === "a4" ? 1 : format === "story" ? 1.35 : format === "post" ? 1.18 : 1.05;
   const hero = draft.renderPaths[0];
   const gallery = draft.projectRenderPaths.slice(0, 3);
+  const contacts = normalizeSpecialistContacts(draft.specialistContacts ?? {
+    firstName: draft.managerName,
+    lastName: "",
+    agency: "",
+    phone: draft.managerPhone,
+  });
+  const contactName = specialistFullName(contacts);
+  const showContacts = hasSpecialistContacts(contacts);
+  const contactFooterHeight = showContacts ? 74 * scale : 0;
 
   return (
     <div
@@ -113,11 +123,11 @@ export const OnePageDocument = forwardRef<HTMLDivElement, { draft: OnePageDraft;
         </section>
       </div>
 
-      <section className="grid grid-cols-3" style={{ height: layout.gallery, gap: layout.gap, marginTop: layout.gap }}>
+      <section className="grid grid-cols-3" style={{ height: layout.gallery - contactFooterHeight, gap: layout.gap, marginTop: layout.gap }}>
         {gallery.map((path, index) => <div key={`${path}-${index}`} className="relative overflow-hidden rounded-[9px]" style={{ background: tokens.panel }}><img src={path} alt={`Cosmos Black Sea, изображение ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" /></div>)}
       </section>
 
-      {draft.managerName || draft.managerPhone ? <footer className="absolute flex items-end justify-between border-t pt-2" style={{ left: layout.padding, right: layout.padding, bottom: layout.padding * .65, borderColor: tokens.line }}><div><p className="font-medium">{draft.managerName || "Менеджер проекта"}</p>{draft.managerPhone ? <p className="mt-1 text-[.82em]" style={{ color: tokens.muted }}>{draft.managerPhone}</p> : null}</div><p className="text-[.68em] uppercase tracking-[.13em]" style={{ color: tokens.muted }}>COSMOS BLACK SEA</p></footer> : null}
+      {showContacts ? <footer className="absolute flex items-end justify-between gap-5 border-t pt-2" style={{ left: layout.padding, right: layout.padding, bottom: layout.padding * .55, borderColor: tokens.line }}><div className="min-w-0"><p className="text-[.66em] font-medium uppercase tracking-[.14em]" style={{ color: tokens.muted }}>Контакты специалиста</p>{contactName ? <p className="mt-1 font-medium">{contactName}</p> : null}{contacts.agency ? <p className="mt-0.5 max-w-[32em] break-words text-[.78em] leading-tight" style={{ color: tokens.muted }}>{contacts.agency}</p> : null}{contacts.phone ? <p className="mt-0.5 text-[.82em]" style={{ color: tokens.muted }}>{contacts.phone}</p> : null}</div><p className="shrink-0 text-[.68em] uppercase tracking-[.13em]" style={{ color: tokens.muted }}>COSMOS BLACK SEA</p></footer> : null}
     </div>
   );
 });

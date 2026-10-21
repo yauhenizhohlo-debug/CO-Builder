@@ -18,6 +18,7 @@ const draft = (template: OnePageTemplate): OnePageDraft => ({
   specialConditions: "Тест", guaranteedIncome: template === "ivory" ? 1_000_000 : null,
   guaranteedIncomeSource: template === "ivory" ? "Подтверждённая программа" : "",
   managerName: "Анна", managerPhone: "+7 900 000-00-00", scenarioLabel: "Индивидуальные условия",
+  specialistContacts: { firstName: "Анна", lastName: "Петрова", agency: "Агентство недвижимости", phone: "+7 900 000-00-00" },
   template, format: "a4", layoutPath: "/layouts/page-40.webp", renderPaths: ["/renders/room-25-9/01.jpg"],
   projectRenderPaths: selectProjectRenders("437п:0").map((item) => item.imagePath),
 });
@@ -33,6 +34,26 @@ for (const template of templates) test(`${template} creates an immutable balance
   assert.equal(snapshot.roomSnapshot.price, 15_799_000);
   assert.equal(snapshot.template, template);
   assert.deepEqual(snapshot.paymentSettingsSnapshot, { balanceMode: "auto", balancerId: "rest" });
+  assert.deepEqual(snapshot.contentSnapshot.specialistContacts, value.specialistContacts);
+});
+
+test("specialist contacts are optional and frozen inside a One Page snapshot", () => {
+  const value = draft("ivory");
+  const snapshot = createOnePageSnapshot(value, "contacts", "2026-10-21T00:00:00.000Z");
+  value.specialistContacts!.agency = "Изменённое агентство";
+  assert.equal(snapshot.contentSnapshot.specialistContacts?.agency, "Агентство недвижимости");
+
+  const legacy = draft("ivory");
+  delete legacy.specialistContacts;
+  assert.equal(createOnePageSnapshot(legacy).contentSnapshot.specialistContacts, undefined);
+});
+
+test("invalid specialist phone blocks One Page persistence and export calculation", () => {
+  const value = draft("obsidian");
+  value.specialistContacts!.phone = "call me<script>";
+  const result = calculateOnePage(value);
+  assert.equal(result.isBalanced, false);
+  assert.ok(result.errors.some((error) => error.includes("Телефон")));
 });
 
 test("invalid totals and unconfirmed guaranteed income are rejected", () => {

@@ -12,11 +12,23 @@ test("freezes a custom installment schedule", () => {
     scheduleBalancerId: "b",
     scheduleValidationErrors: [],
     schedule: [{ id: "a", date: "2026-01-01", type: "initial" as const, label: "Первоначальный взнос", amount: 300, cumulativeAmount: 300 }, { id: "b", date: "2027-01-01", type: "final" as const, label: "Финальный платёж", amount: 700, cumulativeAmount: 1000 }],
+    specialistContacts: { firstName: "Анна", lastName: "Петрова", agency: "Очень длинное название агентства недвижимости", phone: "+7 900 000-00-00" },
   };
   const snapshot = createProposalSnapshot(proposal, "snapshot-1", "2026-01-01T00:00:00.000Z");
   proposal.schedule[1].amount = 1;
+  proposal.specialistContacts.agency = "Изменено";
   assert.equal(snapshot.proposal.financingType, "installment");
   assert.equal(snapshot.proposal.schedule[1].amount, 700);
   assert.equal(snapshot.proposal.financingType === "installment" ? snapshot.proposal.scheduleBalanceMode : null, "auto");
   assert.equal(snapshot.proposal.financingType === "installment" ? snapshot.proposal.scheduleBalancerId : null, "b");
+  assert.equal(snapshot.proposal.specialistContacts?.agency, "Очень длинное название агентства недвижимости");
+});
+
+test("legacy proposal snapshots remain valid without specialist contacts", () => {
+  const proposal = {
+    financingType: "mortgage" as const,
+    room: { roomNumber: "704", floor: 7, area: 38, pricePerSqm: 605000, price: 22990000, layoutId: "page-18", renderSetId: "room-38" },
+    mortgage: { price: 1000, initialPayment: 300, initialPaymentPercent: 30, loanAmount: 700, annualRate: 10, termYears: 30, termMonths: 360, trancheTotal: 700, difference: 0, remainingBalance: 700, totalInterest: 0, totalPayments: 0, stages: [], schedule: [], isBalanced: true, validationMessages: [] },
+  };
+  assert.equal(createProposalSnapshot(proposal).proposal.specialistContacts, undefined);
 });

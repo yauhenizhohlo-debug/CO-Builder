@@ -7,6 +7,8 @@ import { getRenderSetById } from "../data/render-sets";
 import { regularPaymentSummary } from "../lib/custom-payment-schedule";
 import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
+import { SpecialistContactsForm } from "./specialist-contacts-form";
+import { emptySpecialistContacts, hasSpecialistContacts, normalizeSpecialistContacts, specialistContactsError, specialistFullName } from "../lib/specialist-contacts";
 
 const currency = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -57,9 +59,13 @@ export function ProposalPreview({
   const proposalData = importedProposalData ?? context.proposalData;
   const [isOpen, setIsOpen] = useState(false);
   const [snapshotMessage, setSnapshotMessage] = useState("");
+  const [specialistContacts, setSpecialistContacts] = useState(emptySpecialistContacts);
 
   useEffect(() => {
-    const open = () => setIsOpen(true);
+    const open = () => {
+      setSpecialistContacts(emptySpecialistContacts());
+      setIsOpen(true);
+    };
     window.addEventListener("open-full-proposal", open);
     return () => window.removeEventListener("open-full-proposal", open);
   }, []);
@@ -93,8 +99,12 @@ export function ProposalPreview({
     : mortgage?.initialPaymentPercent ?? 0;
   const customRegularPayment = scheduleMode === "custom" ? regularPaymentSummary(schedule) : null;
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
+  const contacts = normalizeSpecialistContacts(specialistContacts);
+  const contactName = specialistFullName(contacts);
+  const contactsError = specialistContactsError(contacts);
 
   const handlePrint = async () => {
+    if (contactsError) return;
     const proposal = document.querySelector<HTMLElement>(".proposal-print-root");
     const images = proposal ? Array.from(proposal.querySelectorAll("img")) : [];
 
@@ -132,12 +142,12 @@ export function ProposalPreview({
   };
 
   const handleSaveSnapshot = async () => {
-    if (!proposalData) return;
+    if (!proposalData || contactsError) return;
     setSnapshotMessage("");
     const response = await fetch("/api/proposal-snapshots", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(proposalData),
+      body: JSON.stringify({ ...proposalData, specialistContacts: contacts }),
     });
     const result: unknown = await response.json().catch(() => null);
     if (response.ok && result && typeof result === "object" && "snapshot" in result) {
@@ -160,7 +170,7 @@ export function ProposalPreview({
         <button
           type="button"
           disabled={!proposalData || scheduleErrors.length > 0 || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
-          onClick={() => setIsOpen(true)}
+          onClick={() => { setSpecialistContacts(emptySpecialistContacts()); setIsOpen(true); }}
           className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Сформировать КП
@@ -177,10 +187,10 @@ export function ProposalPreview({
                   <p className="mt-1 text-xs text-stone-500">Номер {room.roomNumber.replace(/^№/, "")}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={handleSaveSnapshot} className="relative z-10 rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">
+                  <button type="button" disabled={Boolean(contactsError)} onClick={handleSaveSnapshot} className="relative z-10 rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-40">
                     Сохранить snapshot
                   </button>
-                  <button type="button" onClick={handlePrint} className="relative z-10 rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50">
+                  <button type="button" disabled={Boolean(contactsError)} onClick={handlePrint} className="relative z-10 rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40">
                     Сохранить PDF
                   </button>
                   <button type="button" onClick={() => setIsOpen(false)} className="rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">
@@ -192,6 +202,9 @@ export function ProposalPreview({
             </div>
 
             <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
+              <section className="proposal-controls rounded-xl border border-white/10 bg-stone-900 p-5 text-stone-100">
+                <SpecialistContactsForm value={specialistContacts} onChange={setSpecialistContacts} />
+              </section>
               <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
                 <header className="border-b border-[#cec5b6] pb-6">
                   <div>
@@ -428,6 +441,7 @@ export function ProposalPreview({
                     </div>
                   )}
                 </div>
+                {hasSpecialistContacts(contacts) ? <section className="mt-5 border-t border-white/15 pt-4"><p className="text-[7px] uppercase tracking-[0.2em] text-[#c5a97e]">Контакты специалиста</p><div className="mt-2 grid grid-cols-[1fr_auto] items-end gap-6"><div className="min-w-0">{contactName ? <p className="font-serif text-[17px]">{contactName}</p> : null}{contacts.agency ? <p className="mt-1 max-w-[520px] break-words text-[8px] leading-3 text-stone-400">{contacts.agency}</p> : null}</div>{contacts.phone ? <p className="text-[11px] font-medium text-stone-200">{contacts.phone}</p> : null}</div></section> : null}
                 <PageFooter page={3} dark />
               </article>
             </div>
