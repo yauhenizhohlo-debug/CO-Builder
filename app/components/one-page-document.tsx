@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import type { OnePageCalculation, OnePageDraft, OnePageFormat, OnePageTemplate } from "../lib/one-page";
-import { hasSpecialistContacts, normalizeSpecialistContacts, specialistFullName } from "../lib/specialist-contacts";
+import { hasSpecialistContacts, normalizeSpecialistContacts, specialistContactsEnabled, specialistFullName } from "../lib/specialist-contacts";
 
 const money = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
@@ -29,7 +29,8 @@ function normalizedFormat(format: OnePageFormat): Exclude<OnePageFormat, "social
 }
 
 function paymentSummary(calculation: OnePageCalculation) {
-  const initial = calculation.payments.find((payment) => /первонач/i.test(payment.label));
+  const initial = calculation.payments.find((payment) => payment.type === "initial")
+    ?? calculation.payments.find((payment) => /первонач/i.test(payment.label));
   const remaining = calculation.payments.filter((payment) => payment.id !== initial?.id);
   const final = [...remaining].reverse().find((payment) => /финаль/i.test(payment.label));
   const topUp = remaining.find((payment) => /довнос|промежуточ/i.test(payment.label));
@@ -63,7 +64,7 @@ export const OnePageDocument = forwardRef<HTMLDivElement, { draft: OnePageDraft;
     phone: draft.managerPhone,
   });
   const contactName = specialistFullName(contacts);
-  const showContacts = hasSpecialistContacts(contacts);
+  const showContacts = specialistContactsEnabled(draft.specialistContactsMode, contacts) && hasSpecialistContacts(contacts);
   const contactFooterHeight = showContacts ? 74 * scale : 0;
 
   return (
@@ -119,6 +120,7 @@ export const OnePageDocument = forwardRef<HTMLDivElement, { draft: OnePageDraft;
             </div>
           )}
           {!summary.isFullPayment && (summary.hasTopUp || summary.hasFinal) ? <p className="mt-4 border-t pt-3 text-[.82em] leading-5" style={{ borderColor: tokens.line, color: tokens.muted }}>{summary.hasTopUp ? "Предусмотрен контрольный довнос. " : ""}{summary.hasFinal ? "Предусмотрен финальный платёж." : ""}</p> : null}
+          {draft.paymentMode === "custom" ? <p className="mt-3 text-[.72em] leading-4" style={{ color: tokens.muted }}>Свободный график требует отдельного согласования и не является автоматически утверждёнными условиями девелопера.</p> : null}
           {draft.specialConditions ? <p className="mt-3 line-clamp-2 text-[.78em] leading-4" style={{ color: tokens.muted }}>{draft.specialConditions}</p> : null}
         </section>
       </div>

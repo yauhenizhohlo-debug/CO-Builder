@@ -5,6 +5,12 @@ export type SpecialistContacts = {
   phone: string;
 };
 
+export type SpecialistContactsMode = "none" | "enabled";
+
+export function specialistContactsEnabled(mode: SpecialistContactsMode | undefined, value?: Partial<SpecialistContacts> | null) {
+  return mode === "enabled" || (mode === undefined && hasSpecialistContacts(value));
+}
+
 export const emptySpecialistContacts = (): SpecialistContacts => ({
   firstName: "",
   lastName: "",
@@ -41,4 +47,3 @@ export function specialistFullName(value?: Partial<SpecialistContacts> | null) {
   const contacts = normalizeSpecialistContacts(value);
   return [contacts.firstName, contacts.lastName].filter(Boolean).join(" ");
 }
-

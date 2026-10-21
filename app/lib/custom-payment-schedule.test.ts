@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { balanceCustomSchedule, distributeScheduleRemainder, validateCustomSchedule } from "./custom-payment-schedule.ts";
+import { balanceCustomSchedule, distributeScheduleRemainder, MAX_CUSTOM_SCHEDULE_ROWS, validateCustomSchedule } from "./custom-payment-schedule.ts";
 
 const rows = [
   { id: "initial", date: "2026-10-17", label: "Первоначальный взнос", amount: 3_000_000, type: "initial" as const },
@@ -24,6 +24,20 @@ test("individual schedule rejects negative, duplicate and out-of-order rows", ()
   assert.ok(result.errors.some((error) => error.includes("отрицательной")));
   assert.ok(result.errors.some((error) => error.includes("дату")));
   assert.ok(result.errors.some((error) => error.includes("дублирует")));
+});
+
+test("free schedule enforces unique identifiers and the technical row limit", () => {
+  const tooManyRows = Array.from({ length: MAX_CUSTOM_SCHEDULE_ROWS + 1 }, (_, index) => ({
+    id: index === MAX_CUSTOM_SCHEDULE_ROWS ? "stage-1" : `stage-${index + 1}`,
+    date: `2027-${String((index % 12) + 1).padStart(2, "0")}-01`,
+    label: `Этап ${index + 1}`,
+    amount: index === 0 ? 1_000_000 : 0,
+    type: "top-up" as const,
+  }));
+  const result = validateCustomSchedule(tooManyRows, 1_000_000);
+  assert.equal(result.isValid, false);
+  assert.ok(result.errors.some((error) => error.includes(`не более ${MAX_CUSTOM_SCHEDULE_ROWS}`)));
+  assert.ok(result.errors.some((error) => error.includes("некорректный идентификатор")));
 });
 
 test("auto balance uses the final payment and reacts to another payment change", () => {

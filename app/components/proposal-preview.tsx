@@ -8,7 +8,7 @@ import { regularPaymentSummary } from "../lib/custom-payment-schedule";
 import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
 import { SpecialistContactsForm } from "./specialist-contacts-form";
-import { emptySpecialistContacts, hasSpecialistContacts, normalizeSpecialistContacts, specialistContactsError, specialistFullName } from "../lib/specialist-contacts";
+import { emptySpecialistContacts, hasSpecialistContacts, normalizeSpecialistContacts, specialistContactsEnabled, specialistContactsError, specialistFullName, type SpecialistContactsMode } from "../lib/specialist-contacts";
 
 const currency = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -60,10 +60,12 @@ export function ProposalPreview({
   const [isOpen, setIsOpen] = useState(false);
   const [snapshotMessage, setSnapshotMessage] = useState("");
   const [specialistContacts, setSpecialistContacts] = useState(emptySpecialistContacts);
+  const [specialistContactsMode, setSpecialistContactsMode] = useState<SpecialistContactsMode>("none");
 
   useEffect(() => {
     const open = () => {
       setSpecialistContacts(emptySpecialistContacts());
+      setSpecialistContactsMode("none");
       setIsOpen(true);
     };
     window.addEventListener("open-full-proposal", open);
@@ -93,7 +95,9 @@ export function ProposalPreview({
   const scheduleMode = proposalData?.financingType === "installment" ? proposalData.scheduleMode ?? "standard" : "standard";
   const scheduleErrors = proposalData?.financingType === "installment" ? proposalData.scheduleValidationErrors ?? [] : [];
   const customInitialPayment = scheduleMode === "custom" ? schedule.find((payment) => payment.type === "initial")?.amount : undefined;
-  const displayedInitialPayment = customInitialPayment ?? installment?.initialPayment ?? mortgage?.initialPayment ?? 0;
+  const displayedInitialPayment = scheduleMode === "custom"
+    ? customInitialPayment ?? 0
+    : installment?.initialPayment ?? mortgage?.initialPayment ?? 0;
   const displayedInitialPercent = installment && installment.discountedPrice > 0
     ? displayedInitialPayment / installment.discountedPrice * 100
     : mortgage?.initialPaymentPercent ?? 0;
@@ -101,7 +105,8 @@ export function ProposalPreview({
   const galleryImages = renderSet?.imagePaths.slice(0, 6) ?? [];
   const contacts = normalizeSpecialistContacts(specialistContacts);
   const contactName = specialistFullName(contacts);
-  const contactsError = specialistContactsError(contacts);
+  const contactsEnabled = specialistContactsEnabled(specialistContactsMode, contacts);
+  const contactsError = contactsEnabled ? specialistContactsError(contacts) : null;
 
   const handlePrint = async () => {
     if (contactsError) return;
@@ -147,7 +152,11 @@ export function ProposalPreview({
     const response = await fetch("/api/proposal-snapshots", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...proposalData, specialistContacts: contacts }),
+      body: JSON.stringify({
+        ...proposalData,
+        specialistContactsMode,
+        specialistContacts: contactsEnabled ? contacts : undefined,
+      }),
     });
     const result: unknown = await response.json().catch(() => null);
     if (response.ok && result && typeof result === "object" && "snapshot" in result) {
@@ -170,7 +179,7 @@ export function ProposalPreview({
         <button
           type="button"
           disabled={!proposalData || scheduleErrors.length > 0 || (proposalData.financingType === "mortgage" && !proposalData.mortgage.isBalanced)}
-          onClick={() => { setSpecialistContacts(emptySpecialistContacts()); setIsOpen(true); }}
+          onClick={() => { setSpecialistContacts(emptySpecialistContacts()); setSpecialistContactsMode("none"); setIsOpen(true); }}
           className="mt-5 w-full rounded-xl bg-amber-100 px-4 py-3.5 text-sm font-medium text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Сформировать КП
@@ -203,7 +212,7 @@ export function ProposalPreview({
 
             <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
               <section className="proposal-controls rounded-xl border border-white/10 bg-stone-900 p-5 text-stone-100">
-                <SpecialistContactsForm value={specialistContacts} onChange={setSpecialistContacts} />
+                <SpecialistContactsForm value={specialistContacts} onChange={setSpecialistContacts} mode={specialistContactsMode} onModeChange={setSpecialistContactsMode} />
               </section>
               <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
                 <header className="border-b border-[#cec5b6] pb-6">
@@ -266,7 +275,7 @@ export function ProposalPreview({
                     ["Цена по прайсу", formatCurrency(installment.listPrice)],
                     ["Скидка", `${formatPercent(installment.discountPercent)}% · ${formatCurrency(installment.discountAmount)}`],
                     ["Цена после скидки", formatCurrency(installment.discountedPrice)],
-                    ["Условия", scheduleMode === "custom" ? "Индивидуальный график" : `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
+                    ["Условия", scheduleMode === "custom" ? "Свободный график" : `ПВ ${installment.initialPaymentPercent}% · ${installment.firstPeriodPaymentCount + installment.secondPeriodPaymentCount} регулярных платежей`],
                   ].map(([label, value]) => (
                     <div key={label} className="border-l border-[#ddd5c9] pl-3 first:border-l-0 first:pl-0">
                       <dt className="text-[7px] uppercase leading-3 tracking-[0.12em] text-stone-500">{label}</dt>
@@ -319,7 +328,7 @@ export function ProposalPreview({
                   </div>
                   <div className="border border-[#d8d0c4] bg-[#faf8f4] p-3">
                     <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Регулярные платежи</p>
-                    {customRegularPayment ? <><p className="mt-2 font-serif text-[18px]">{formatCurrency(customRegularPayment.amount)}</p><p className="mt-1 text-[7px] text-stone-500">{customRegularPayment.count} одинаковых платежей</p></> : <p className="mt-2 font-serif text-[16px]">Индивидуальный график</p>}
+                    {customRegularPayment ? <><p className="mt-2 font-serif text-[18px]">{formatCurrency(customRegularPayment.amount)}</p><p className="mt-1 text-[7px] text-stone-500">{customRegularPayment.count} одинаковых платежей</p></> : <p className="mt-2 font-serif text-[16px]">Свободный график</p>}
                   </div>
                   <div className="border border-[#d8d0c4] bg-[#faf8f4] p-3">
                     <p className="text-[7px] uppercase tracking-[0.13em] text-stone-500">Всего этапов</p>
@@ -331,7 +340,7 @@ export function ProposalPreview({
                 <div className="mt-3 min-h-0 flex-1">
                   <div className="flex items-end justify-between border-b border-[#9f9688] pb-2">
                     <div>
-                      <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">{scheduleMode === "custom" ? "Индивидуальный график" : "Персональный график"}</p>
+                      <p className="text-[7px] uppercase tracking-[0.2em] text-[#9a7747]">{scheduleMode === "custom" ? "Свободный график" : "Персональный график"}</p>
                       <h3 className="mt-1 font-serif text-[23px] leading-none">Календарь платежей</h3>
                     </div>
                     <p className="text-[7px] text-stone-400">Все платежи в хронологическом порядке</p>
@@ -350,6 +359,7 @@ export function ProposalPreview({
                       </li>
                     ))}
                   </ol>
+                  {scheduleMode === "custom" ? <p className="mt-2 text-[6.5px] leading-[9px] text-stone-500">Свободный график требует отдельного согласования и не является автоматически утверждёнными условиями девелопера.</p> : null}
                 </div>
                 </> : mortgage ? <>
                   <div className="mt-5 flex items-end justify-between border-y border-[#d8d0c4] py-4">
@@ -441,7 +451,7 @@ export function ProposalPreview({
                     </div>
                   )}
                 </div>
-                {hasSpecialistContacts(contacts) ? <section className="mt-5 border-t border-white/15 pt-4"><p className="text-[7px] uppercase tracking-[0.2em] text-[#c5a97e]">Контакты специалиста</p><div className="mt-2 grid grid-cols-[1fr_auto] items-end gap-6"><div className="min-w-0">{contactName ? <p className="font-serif text-[17px]">{contactName}</p> : null}{contacts.agency ? <p className="mt-1 max-w-[520px] break-words text-[8px] leading-3 text-stone-400">{contacts.agency}</p> : null}</div>{contacts.phone ? <p className="text-[11px] font-medium text-stone-200">{contacts.phone}</p> : null}</div></section> : null}
+                {contactsEnabled && hasSpecialistContacts(contacts) ? <section className="mt-5 border-t border-white/15 pt-4"><p className="text-[7px] uppercase tracking-[0.2em] text-[#c5a97e]">Контакты специалиста</p><div className="mt-2 grid grid-cols-[1fr_auto] items-end gap-6"><div className="min-w-0">{contactName ? <p className="font-serif text-[17px]">{contactName}</p> : null}{contacts.agency ? <p className="mt-1 max-w-[520px] break-words text-[8px] leading-3 text-stone-400">{contacts.agency}</p> : null}</div>{contacts.phone ? <p className="text-[11px] font-medium text-stone-200">{contacts.phone}</p> : null}</div></section> : null}
                 <PageFooter page={3} dark />
               </article>
             </div>

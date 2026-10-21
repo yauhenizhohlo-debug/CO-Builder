@@ -7,7 +7,7 @@ import type { PaymentScheduleItem } from "../lib/build-payment-schedule";
 import type { InstallmentResult } from "../lib/calculate-installment";
 import type { TrancheMortgageResult } from "../lib/calculate-tranche-mortgage";
 import type { ScheduleBalanceMode } from "../lib/custom-payment-schedule";
-import type { SpecialistContacts } from "../lib/specialist-contacts";
+import type { SpecialistContacts, SpecialistContactsMode } from "../lib/specialist-contacts";
 
 export type InstallmentProposalData = {
   room: Room;
@@ -19,6 +19,7 @@ export type InstallmentProposalData = {
   scheduleBalancerId?: string | null;
   scheduleValidationErrors?: string[];
   specialistContacts?: SpecialistContacts;
+  specialistContactsMode?: SpecialistContactsMode;
 };
 
 export type MortgageProposalData = {
@@ -26,6 +27,7 @@ export type MortgageProposalData = {
   financingType: "mortgage";
   mortgage: TrancheMortgageResult;
   specialistContacts?: SpecialistContacts;
+  specialistContactsMode?: SpecialistContactsMode;
 };
 
 export type ProposalData = InstallmentProposalData | MortgageProposalData;

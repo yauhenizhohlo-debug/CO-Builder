@@ -4,6 +4,7 @@ import { useId, useMemo } from "react";
 import {
   balanceCustomSchedule,
   distributeScheduleRemainder,
+  MAX_CUSTOM_SCHEDULE_ROWS,
   type EditablePayment,
   type ScheduleBalanceMode,
 } from "../lib/custom-payment-schedule";
@@ -53,9 +54,10 @@ export function CustomPaymentScheduleEditor({
     onRowsChange(next);
   };
   const add = () => {
+    if (rows.length >= MAX_CUSTOM_SCHEDULE_ROWS) return;
     onRowsChange([...rows, {
       id: crypto.randomUUID(),
-      date: rows.at(-1)?.date ?? defaultDate,
+      date: defaultDate,
       label: `Этап ${rows.length + 1}`,
       amount: 0,
       type: "top-up",
@@ -80,7 +82,7 @@ export function CustomPaymentScheduleEditor({
         <div className={`rounded-lg border p-3 ${balanced.remaining === 0 ? "border-emerald-300/20 bg-emerald-300/[0.06]" : "border-amber-200/20 bg-amber-100/[0.05]"}`}><p className="text-[10px] text-stone-500">{balanced.remaining < 0 ? "Превышение" : "Остаток к распределению"}</p><p className={`mt-1 text-sm ${balanced.remaining < 0 ? "text-red-200" : "text-stone-100"}`}>{currency.format(Math.abs(balanced.remaining))}</p></div>
       </div>
 
-      <p className="text-[10px] leading-4 text-stone-500">В авто-режиме назначенный платёж пересчитывается без изменения дат и порядка этапов.</p>
+      <p className="text-[10px] leading-4 text-stone-500">Свободный график не является автоматически утверждёнными условиями девелопера. В авто-режиме назначенный платёж пересчитывается без изменения дат, названий и порядка остальных этапов.</p>
 
       {visibleRows.map((payment, index) => {
         const isBalancer = balanced.balancerId === payment.id;
@@ -97,17 +99,24 @@ export function CustomPaymentScheduleEditor({
                 <button type="button" aria-label={`Удалить этап ${index + 1}`} onClick={() => remove(payment.id)} className="min-h-10 rounded-md border border-red-300/20 px-3 text-red-200">×</button>
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-[122px_1fr_140px]">
+            <div className="grid gap-2 sm:grid-cols-[122px_1fr_140px_150px]">
               <input aria-label={`Дата этапа ${index + 1}`} type="date" value={payment.date} onChange={(event) => update(payment.id, { date: event.target.value })} className="min-h-11 rounded-md border border-white/10 bg-stone-900 px-2 text-xs" />
               <input aria-label={`Название этапа ${index + 1}`} value={payment.label} onChange={(event) => update(payment.id, { label: event.target.value })} className="min-h-11 rounded-md border border-white/10 bg-stone-900 px-2 text-xs" />
               <input aria-label={`Сумма этапа ${index + 1}`} type="number" min="0" step="0.01" value={payment.amount} disabled={balanceMode === "auto" && isBalancer} onChange={(event) => update(payment.id, { amount: Math.max(0, Number(event.target.value) || 0) })} className="min-h-11 rounded-md border border-white/10 bg-stone-900 px-2 text-xs disabled:cursor-not-allowed disabled:text-amber-100 disabled:opacity-100" />
+              <select aria-label={`Роль этапа ${index + 1}`} value={payment.type} onChange={(event) => update(payment.id, { type: event.target.value as EditablePayment["type"] })} className="min-h-11 rounded-md border border-white/10 bg-stone-900 px-2 text-xs">
+                <option value="initial">Первоначальный взнос</option>
+                <option value="regular-first">Обычный платёж</option>
+                <option value="top-up">Ключевой платёж</option>
+                <option value="regular-second">Обычный платёж</option>
+                <option value="final">Завершающий платёж</option>
+              </select>
             </div>
           </div>
         );
       })}
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={add} className="min-h-11 rounded-lg border border-dashed border-white/20 text-xs">Добавить этап</button>
+        <button type="button" onClick={add} disabled={rows.length >= MAX_CUSTOM_SCHEDULE_ROWS} className="min-h-11 rounded-lg border border-dashed border-white/20 text-xs disabled:opacity-35">Добавить этап</button>
         {balanceMode === "manual" && <button type="button" onClick={distribute} disabled={!balanced.balancerId || balanced.excess > 0} className="min-h-11 rounded-lg border border-amber-200/30 text-xs text-amber-100 disabled:opacity-35">Распределить остаток</button>}
       </div>
 

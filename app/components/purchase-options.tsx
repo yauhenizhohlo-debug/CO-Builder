@@ -48,13 +48,16 @@ const formatCurrency = (value: number) => currency.format(value);
 const formatPercent = (value: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 }).format(value);
 
-const formatDate = (date: string) =>
-  new Intl.DateTimeFormat("ru-RU", {
+const formatDate = (date: string) => {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return "Дата не указана";
+  return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
+  }).format(parsed);
+};
 
 const todayIso = () => {
   const now = new Date();
@@ -156,13 +159,27 @@ function InstallmentOptions() {
   }, [room, result, schedule, scheduleMode, customBalanceMode, balancedCustomSchedule.balancerId, customScheduleValidation.errors, setProposalData]);
 
   const chooseScheduleMode = (mode: "standard" | "custom") => {
-    if (mode === "custom" && customSchedule.length === 0) {
-      const next = toEditableSchedule(standardSchedule);
-      setCustomSchedule(next);
-      setCustomBalancerId(getDefaultBalancerId(next));
-      setCustomBalanceMode("auto");
-    }
     setScheduleMode(mode);
+  };
+
+  const startEmptyFreeSchedule = () => {
+    const first: EditablePayment = {
+      id: crypto.randomUUID(),
+      date: "",
+      label: "Первый этап",
+      amount: 0,
+      type: "initial",
+    };
+    setCustomSchedule([first]);
+    setCustomBalancerId(first.id);
+    setCustomBalanceMode("auto");
+  };
+
+  const copyStandardSchedule = () => {
+    const next = toEditableSchedule(standardSchedule);
+    setCustomSchedule(next);
+    setCustomBalancerId(getDefaultBalancerId(next));
+    setCustomBalanceMode("auto");
   };
 
   const selectPlan = (nextPlan: (typeof plans)[number]) => {
@@ -351,36 +368,53 @@ function InstallmentOptions() {
       <section className="panel p-6" aria-labelledby="calculation-heading">
         <p className="eyebrow">03 · Расчёт</p>
         <h2 id="calculation-heading" className="mt-3 font-serif text-2xl">Календарь платежей</h2>
-        <p className="mt-2 text-xs leading-5 text-stone-500">
-          Контрольная дата escrow — {formatDate(ESCROW_CONTROL_DATE)}
-        </p>
-
-        <dl className="mt-6 grid grid-cols-2 gap-2">
-          {summary.map(([label, value], index) => (
-            <div key={label} className={`rounded-xl border border-white/10 bg-white/[0.025] p-3 ${index === 0 ? "col-span-2" : ""}`}>
-              <dt className="text-[10px] leading-4 text-stone-500">{label}</dt>
-              <dd className="mt-1.5 text-sm text-stone-100">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {scheduleMode === "standard" ? (
+          <>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Контрольная дата escrow — {formatDate(ESCROW_CONTROL_DATE)}
+            </p>
+            <dl className="mt-6 grid grid-cols-2 gap-2">
+              {summary.map(([label, value], index) => (
+                <div key={label} className={`rounded-xl border border-white/10 bg-white/[0.025] p-3 ${index === 0 ? "col-span-2" : ""}`}>
+                  <dt className="text-[10px] leading-4 text-stone-500">{label}</dt>
+                  <dd className="mt-1.5 text-sm text-stone-100">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-stone-500">
+            Свободный график не использует контрольные даты и формулы стандартной рассрочки.
+          </p>
+        )}
 
         <div className="mt-7 rounded-xl border border-white/10 bg-stone-950/25 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-stone-200">График платежей</p>
-              <p className="mt-1 text-[10px] leading-4 text-stone-500">Стандартный расчёт остаётся без изменений. Индивидуальный график используется в preview и PDF.</p>
+              <p className="mt-1 text-[10px] leading-4 text-stone-500">Стандартная рассрочка сохраняет правила COSMOS. Свободный график задаётся вручную и не считается автоматически утверждённым девелопером.</p>
             </div>
             <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1" role="radiogroup" aria-label="Тип графика платежей">
               {([[
                 "standard", "Стандартный",
-              ], ["custom", "Индивидуальный"]] as const).map(([mode, label]) => (
+              ], ["custom", "Свободный"]] as const).map(([mode, label]) => (
                 <button key={mode} type="button" role="radio" aria-checked={scheduleMode === mode} onClick={() => chooseScheduleMode(mode)} className={`min-h-11 rounded-md px-3 text-[10px] transition ${scheduleMode === mode ? "bg-amber-100 text-stone-950" : "text-stone-500 hover:text-stone-300"}`}>{label}</button>
               ))}
             </div>
           </div>
 
           {scheduleMode === "custom" && (
-            <div className="mt-4"><CustomPaymentScheduleEditor rows={customSchedule} expectedTotal={result.discountedPrice} balanceMode={customBalanceMode} balancerId={customBalancerId} onRowsChange={setCustomSchedule} onBalanceModeChange={setCustomBalanceMode} onBalancerChange={setCustomBalancerId} defaultDate={transactionDate} /></div>
+            <div className="mt-4">
+              {customSchedule.length === 0 ? (
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+                  <p className="text-xs leading-5 text-stone-400">Начните с чистого графика или явно скопируйте текущую стандартную рассрочку для редактирования.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <button type="button" onClick={startEmptyFreeSchedule} className="min-h-11 rounded-lg border border-amber-200/30 px-3 text-xs text-amber-100">Начать с чистого</button>
+                    <button type="button" onClick={copyStandardSchedule} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs text-stone-300">Скопировать стандартный</button>
+                  </div>
+                </div>
+              ) : <CustomPaymentScheduleEditor rows={customSchedule} expectedTotal={result.discountedPrice} balanceMode={customBalanceMode} balancerId={customBalancerId} onRowsChange={setCustomSchedule} onBalanceModeChange={setCustomBalanceMode} onBalancerChange={setCustomBalancerId} />}
+            </div>
           )}
         </div>
 
@@ -389,7 +423,7 @@ function InstallmentOptions() {
             <span>Дата</span>
             <span>Платёж · сумма · накоплено</span>
           </div>
-          <ol className="max-h-[620px] overflow-y-auto" aria-label={scheduleMode === "custom" ? "Предпросмотр индивидуального графика" : "Стандартный график платежей"}>
+          <ol className="max-h-[620px] overflow-y-auto" aria-label={scheduleMode === "custom" ? "Предпросмотр свободного графика" : "Стандартный график платежей"}>
             {schedule.map((payment) => {
               const isTopUp = payment.type === "top-up";
               const isFinal = payment.type === "final";

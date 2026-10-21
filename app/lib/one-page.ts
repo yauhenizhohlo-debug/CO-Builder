@@ -3,7 +3,7 @@ import { calculateInstallment } from "./calculate-installment.ts";
 import type { PaymentScheduleItem } from "./build-payment-schedule.ts";
 import type { Room } from "../data/rooms.ts";
 import { balanceCustomSchedule, getDefaultBalancerId, type ScheduleBalanceMode } from "./custom-payment-schedule.ts";
-import { emptySpecialistContacts, normalizeSpecialistContacts, specialistContactsError, type SpecialistContacts } from "./specialist-contacts.ts";
+import { emptySpecialistContacts, normalizeSpecialistContacts, specialistContactsEnabled, specialistContactsError, type SpecialistContacts, type SpecialistContactsMode } from "./specialist-contacts.ts";
 
 export type OnePageTemplate = "ivory" | "obsidian" | "mission-control" | "industrial" | "liquid-glass";
 // `social` is retained for historical snapshots created before One Page v3.
@@ -29,6 +29,7 @@ export type OnePageDraft = {
   managerName: string;
   managerPhone: string;
   specialistContacts?: SpecialistContacts;
+  specialistContactsMode?: SpecialistContactsMode;
   scenarioLabel: string;
   template: OnePageTemplate;
   format: OnePageFormat;
@@ -89,12 +90,11 @@ export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   const offerPrice = draft.individualPrice === null ? draft.basePrice : draft.individualPrice;
   if (!Number.isFinite(offerPrice) || offerPrice <= 0) errors.push("Цена предложения должна быть больше нуля");
   const discount = calculateDiscount(offerPrice, draft.discount);
-  const rawInitial = draft.initialPaymentMode === "percent"
+  const rawStandardInitial = draft.initialPaymentMode === "percent"
     ? discount.discountedPrice * Math.min(100, Math.max(0, draft.initialPaymentValue)) / 100
     : Math.min(discount.discountedPrice, Math.max(0, draft.initialPaymentValue));
-  const initialPayment = Math.round(rawInitial * 100) / 100;
-  const initialPaymentPercent = discount.discountedPrice > 0 ? initialPayment / discount.discountedPrice * 100 : 0;
-  const expectedCustomTotal = discount.discountedPrice - initialPayment;
+  const standardInitialPayment = Math.round(rawStandardInitial * 100) / 100;
+  const expectedCustomTotal = discount.discountedPrice;
   const balancedCustom = balanceCustomSchedule(
     draft.customPayments.map((payment) => ({ ...payment, type: payment.type ?? "regular-first" })),
     expectedCustomTotal,
@@ -105,16 +105,22 @@ export function calculateOnePage(draft: OnePageDraft): OnePageCalculation {
   }
   const source = draft.paymentMode === "custom"
     ? balancedCustom.rows
-    : synchronizeCalculatedSchedule(draft.calculatedSchedule, discount.discountedPrice, initialPayment);
+    : synchronizeCalculatedSchedule(draft.calculatedSchedule, discount.discountedPrice, standardInitialPayment);
   const payments = source.map((row) => ({ ...row, amount: Number(row.amount) }));
+  const initialPayment = draft.paymentMode === "custom"
+    ? Math.round(payments.filter((row) => row.type === "initial").reduce((sum, row) => sum + row.amount, 0) * 100) / 100
+    : standardInitialPayment;
+  const initialPaymentPercent = discount.discountedPrice > 0 ? initialPayment / discount.discountedPrice * 100 : 0;
   if (payments.some((row) => !Number.isFinite(row.amount) || row.amount < 0)) errors.push("Платежи не могут быть отрицательными");
   if (draft.guaranteedIncome !== null && (!(draft.guaranteedIncome > 0) || !draft.guaranteedIncomeSource.trim())) {
     errors.push("Для гарантированного дохода нужны подтверждённая сумма и источник данных");
   }
-  const contactsError = specialistContactsError(draft.specialistContacts ?? emptySpecialistContacts());
+  const contactsError = specialistContactsEnabled(draft.specialistContactsMode, draft.specialistContacts)
+    ? specialistContactsError(draft.specialistContacts ?? emptySpecialistContacts())
+    : null;
   if (contactsError) errors.push(contactsError);
   const scheduledTotal = payments.reduce((sum, row) => sum + Math.max(0, row.amount), 0);
-  const expectedTotal = draft.paymentMode === "custom" ? expectedCustomTotal : discount.discountedPrice;
+  const expectedTotal = discount.discountedPrice;
   const difference = Math.round((scheduledTotal - expectedTotal) * 100) / 100;
   if (draft.paymentMode === "custom") {
     errors.push(...balancedCustom.validation.errors);
@@ -143,7 +149,7 @@ export type OnePageSnapshot = {
   calculationVersion: "one-page-v1";
   roomSnapshot: Room;
   commercialSnapshot: OnePageCalculation;
-  contentSnapshot: Pick<OnePageDraft, "specialConditions" | "guaranteedIncome" | "guaranteedIncomeSource" | "managerName" | "managerPhone" | "scenarioLabel"> & { specialistContacts?: SpecialistContacts };
+  contentSnapshot: Pick<OnePageDraft, "specialConditions" | "guaranteedIncome" | "guaranteedIncomeSource" | "managerName" | "managerPhone" | "scenarioLabel"> & { specialistContacts?: SpecialistContacts; specialistContactsMode?: SpecialistContactsMode };
   mediaSnapshot: { layoutPath: string | null; renderPaths: string[]; projectRenderPaths: string[] };
   template: OnePageTemplate;
   format: OnePageFormat;
@@ -165,7 +171,10 @@ export function createOnePageSnapshot(draft: OnePageDraft, id = crypto.randomUUI
       guaranteedIncomeSource: draft.guaranteedIncomeSource,
       managerName: draft.managerName,
       managerPhone: draft.managerPhone,
-      specialistContacts: draft.specialistContacts ? normalizeSpecialistContacts(draft.specialistContacts) : undefined,
+      specialistContactsMode: draft.specialistContactsMode,
+      specialistContacts: specialistContactsEnabled(draft.specialistContactsMode, draft.specialistContacts)
+        ? normalizeSpecialistContacts(draft.specialistContacts)
+        : undefined,
       scenarioLabel: draft.scenarioLabel,
     },
     mediaSnapshot: { layoutPath: draft.layoutPath, renderPaths: [...draft.renderPaths], projectRenderPaths: [...draft.projectRenderPaths] },

@@ -60,7 +60,7 @@ function initialDraft(room: ReturnType<typeof useSelectedRoom>, proposal: Return
     calculatedSchedule: installment?.schedule ?? [],
     customPayments: [], customScheduleBalanceMode: "auto", customScheduleBalancerId: null,
     specialConditions: "", guaranteedIncome: null, guaranteedIncomeSource: "",
-    managerName: "", managerPhone: "", specialistContacts: emptySpecialistContacts(), scenarioLabel: installment ? "Рассрочка" : "Индивидуальные условия",
+    managerName: "", managerPhone: "", specialistContacts: emptySpecialistContacts(), specialistContactsMode: "none", scenarioLabel: installment ? "Рассрочка" : "Свободный график",
     template: "ivory", format: "a4", layoutPath: layout?.imagePath ?? null, renderPaths: renders.slice(0, 1), projectRenderPaths,
   };
 }
@@ -106,19 +106,29 @@ export function OnePageGenerator() {
   const editablePayments: EditablePayment[] = draft.customPayments.map((payment) => ({ ...payment, type: payment.type ?? "regular-first" }));
   const updateCustomPayments = (rows: EditablePayment[]) => set("customPayments", rows.map(({ id, date, label, amount, type }) => ({ id, date, label, amount, type })));
   const choosePaymentMode = (mode: OnePageDraft["paymentMode"]) => {
-    setDraft((current) => {
-      if (mode !== "custom" || current.customPayments.length > 0) return { ...current, paymentMode: mode };
-      const customPayments = current.calculatedSchedule
-        .filter((payment) => payment.type !== "initial")
-        .map(({ id, date, label, amount, type }) => ({ id, date, label, amount, type }));
-      return {
-        ...current,
-        paymentMode: mode,
-        customPayments,
-        customScheduleBalanceMode: "auto",
-        customScheduleBalancerId: getDefaultBalancerId(customPayments),
-      };
-    });
+    setDraft((current) => ({ ...current, paymentMode: mode, scenarioLabel: mode === "custom" ? "Свободный график" : "Рассрочка" }));
+  };
+  const startEmptyFreeSchedule = () => {
+    const first: EditablePayment = { id: crypto.randomUUID(), date: "", label: "Первый этап", amount: 0, type: "initial" };
+    setDraft((current) => ({
+      ...current,
+      paymentMode: "custom",
+      customPayments: [first],
+      customScheduleBalanceMode: "auto",
+      customScheduleBalancerId: first.id,
+      scenarioLabel: "Свободный график",
+    }));
+  };
+  const copyCalculatedSchedule = () => {
+    const customPayments = draft.calculatedSchedule.map(({ id, date, label, amount, type }) => ({ id, date, label, amount, type }));
+    setDraft((current) => ({
+      ...current,
+      paymentMode: "custom",
+      customPayments,
+      customScheduleBalanceMode: "auto",
+      customScheduleBalancerId: getDefaultBalancerId(customPayments),
+      scenarioLabel: "Свободный график",
+    }));
   };
   const rotateProjectRenders = () => {
     const nextSeed = projectRenderSeed + 1;
@@ -195,13 +205,14 @@ export function OnePageGenerator() {
               <label className="block text-xs text-stone-400">Индивидуальная цена, ₽ (необязательно)<input type="number" value={draft.individualPrice ?? ""} onChange={(e) => set("individualPrice", e.target.value ? Number(e.target.value) : null)} className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base" /></label>
               <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => set("discount", { mode:"percent", value:draft.discount.value })} className={`min-h-11 rounded-lg border ${draft.discount.mode === "percent" ? "border-amber-200" : "border-white/10"}`}>Скидка, %</button><button type="button" onClick={() => set("discount", { mode:"amount", value:draft.discount.value })} className={`min-h-11 rounded-lg border ${draft.discount.mode === "amount" ? "border-amber-200" : "border-white/10"}`}>Скидка, ₽</button></div>
               <input aria-label="Размер скидки" type="number" min="0" value={draft.discount.value} onChange={(e) => set("discount", { ...draft.discount, value:Number(e.target.value) })} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base" />
-              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => set("initialPaymentMode", "percent")} className={`min-h-11 rounded-lg border ${draft.initialPaymentMode === "percent" ? "border-amber-200" : "border-white/10"}`}>ПВ, %</button><button type="button" onClick={() => set("initialPaymentMode", "amount")} className={`min-h-11 rounded-lg border ${draft.initialPaymentMode === "amount" ? "border-amber-200" : "border-white/10"}`}>ПВ, ₽</button></div>
-              <input aria-label="Первоначальный взнос" type="number" min="0" value={draft.initialPaymentValue} onChange={(e) => set("initialPaymentValue", Number(e.target.value))} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base" />
-              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => choosePaymentMode("calculated")} className={`min-h-11 rounded-lg border ${draft.paymentMode === "calculated" ? "border-amber-200" : "border-white/10"}`}>Текущий график</button><button type="button" onClick={() => choosePaymentMode("custom")} className={`min-h-11 rounded-lg border ${draft.paymentMode === "custom" ? "border-amber-200" : "border-white/10"}`}>Свои этапы</button></div>
-              {draft.paymentMode === "custom" && <CustomPaymentScheduleEditor rows={editablePayments} expectedTotal={calculation.dealPrice - calculation.initialPayment} balanceMode={draft.customScheduleBalanceMode ?? "auto"} balancerId={draft.customScheduleBalancerId ?? getDefaultBalancerId(editablePayments)} onRowsChange={updateCustomPayments} onBalanceModeChange={(mode) => set("customScheduleBalanceMode", mode)} onBalancerChange={(id) => set("customScheduleBalancerId", id)} />}
+              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => choosePaymentMode("calculated")} className={`min-h-11 rounded-lg border ${draft.paymentMode === "calculated" ? "border-amber-200" : "border-white/10"}`}>Стандартная рассрочка</button><button type="button" onClick={() => choosePaymentMode("custom")} className={`min-h-11 rounded-lg border ${draft.paymentMode === "custom" ? "border-amber-200" : "border-white/10"}`}>Свободный график</button></div>
+              {draft.paymentMode === "calculated" ? <>
+                <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => set("initialPaymentMode", "percent")} className={`min-h-11 rounded-lg border ${draft.initialPaymentMode === "percent" ? "border-amber-200" : "border-white/10"}`}>ПВ, %</button><button type="button" onClick={() => set("initialPaymentMode", "amount")} className={`min-h-11 rounded-lg border ${draft.initialPaymentMode === "amount" ? "border-amber-200" : "border-white/10"}`}>ПВ, ₽</button></div>
+                <input aria-label="Первоначальный взнос" type="number" min="0" value={draft.initialPaymentValue} onChange={(e) => set("initialPaymentValue", Number(e.target.value))} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base" />
+              </> : draft.customPayments.length === 0 ? <div className="rounded-xl border border-white/10 p-4"><p className="text-xs leading-5 text-stone-400">Свободный график не зависит от стандартной рассрочки. Выберите чистый график или явно скопируйте текущий.</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><button type="button" onClick={startEmptyFreeSchedule} className="min-h-11 rounded-lg border border-amber-200/30 text-xs text-amber-100">Начать с чистого</button><button type="button" onClick={copyCalculatedSchedule} className="min-h-11 rounded-lg border border-white/15 text-xs">Скопировать стандартный</button></div></div> : <CustomPaymentScheduleEditor rows={editablePayments} expectedTotal={calculation.dealPrice} balanceMode={draft.customScheduleBalanceMode ?? "auto"} balancerId={draft.customScheduleBalancerId ?? getDefaultBalancerId(editablePayments)} onRowsChange={updateCustomPayments} onBalanceModeChange={(mode) => set("customScheduleBalanceMode", mode)} onBalancerChange={(id) => set("customScheduleBalancerId", id)} />}
               <label className="block text-xs text-stone-400">Специальные условия<textarea rows={3} value={draft.specialConditions} onChange={(e) => set("specialConditions",e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950 p-3 text-base"/></label>
             </div>}
-            {step === 3 && <div><h2 className="font-serif text-2xl">Тема и контент</h2><p className="mt-2 text-xs leading-5 text-stone-500">Единый master-template и две актуальные визуальные темы. Старые snapshots продолжают поддерживаться.</p><div className="mt-4 space-y-2">{templates.map((item) => <button key={item.id} type="button" onClick={() => set("template",item.id)} className={`w-full rounded-xl border p-3 text-left ${draft.template===item.id?"border-amber-200 bg-amber-100/[.08]":"border-white/10"}`}><span className="text-sm">{item.title}</span><span className="mt-1 block text-xs text-stone-500">{item.note}</span></button>)}</div><div className="mt-4 rounded-xl border border-white/10 p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm">Project renders · Auto</p><p className="mt-1 text-xs text-stone-500">Экстерьер + территория + инфраструктура</p></div><button type="button" onClick={rotateProjectRenders} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs">Обновить подбор</button></div><div className="mt-3 grid grid-cols-3 gap-2">{draft.projectRenderPaths.map((path)=><div key={path} className="aspect-[4/3] overflow-hidden rounded"><img src={path} alt="Выбранный проектный рендер" className="h-full w-full object-cover"/></div>)}</div></div><div className="mt-4 space-y-3"><SpecialistContactsForm value={draft.specialistContacts ?? emptySpecialistContacts()} onChange={(value) => set("specialistContacts", value)} /><input type="number" min="0" placeholder="Подтверждённый доход, ₽ (необязательно)" value={draft.guaranteedIncome ?? ""} onChange={(e)=>set("guaranteedIncome",e.target.value?Number(e.target.value):null)} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base"/>{draft.guaranteedIncome ? <input placeholder="Источник подтверждённых данных" value={draft.guaranteedIncomeSource} onChange={(e)=>set("guaranteedIncomeSource",e.target.value)} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base"/> : null}</div></div>}
+            {step === 3 && <div><h2 className="font-serif text-2xl">Тема и контент</h2><p className="mt-2 text-xs leading-5 text-stone-500">Единый master-template и две актуальные визуальные темы. Старые snapshots продолжают поддерживаться.</p><div className="mt-4 space-y-2">{templates.map((item) => <button key={item.id} type="button" onClick={() => set("template",item.id)} className={`w-full rounded-xl border p-3 text-left ${draft.template===item.id?"border-amber-200 bg-amber-100/[.08]":"border-white/10"}`}><span className="text-sm">{item.title}</span><span className="mt-1 block text-xs text-stone-500">{item.note}</span></button>)}</div><div className="mt-4 rounded-xl border border-white/10 p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm">Project renders · Auto</p><p className="mt-1 text-xs text-stone-500">Экстерьер + территория + инфраструктура</p></div><button type="button" onClick={rotateProjectRenders} className="min-h-11 rounded-lg border border-white/15 px-3 text-xs">Обновить подбор</button></div><div className="mt-3 grid grid-cols-3 gap-2">{draft.projectRenderPaths.map((path)=><div key={path} className="aspect-[4/3] overflow-hidden rounded"><img src={path} alt="Выбранный проектный рендер" className="h-full w-full object-cover"/></div>)}</div></div><div className="mt-4 space-y-3"><SpecialistContactsForm value={draft.specialistContacts ?? emptySpecialistContacts()} onChange={(value) => set("specialistContacts", value)} mode={draft.specialistContactsMode ?? "none"} onModeChange={(mode) => set("specialistContactsMode", mode)} /><input type="number" min="0" placeholder="Подтверждённый доход, ₽ (необязательно)" value={draft.guaranteedIncome ?? ""} onChange={(e)=>set("guaranteedIncome",e.target.value?Number(e.target.value):null)} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base"/>{draft.guaranteedIncome ? <input placeholder="Источник подтверждённых данных" value={draft.guaranteedIncomeSource} onChange={(e)=>set("guaranteedIncomeSource",e.target.value)} className="min-h-12 w-full rounded-xl border border-white/10 bg-stone-950 px-3 text-base"/> : null}</div></div>}
             {step === 4 && <div><h2 className="font-serif text-2xl">Сохранение и экспорт</h2><div className="mt-5 grid gap-2">{(["a4","post","story","square"] as const).map((format)=><button key={format} type="button" onClick={() => set("format",format)} className={`min-h-14 rounded-lg border px-3 py-2 text-left ${draft.format===format?"border-amber-200 bg-amber-100/[0.05]":"border-white/10"}`}><span className="block text-sm">{formatDimensions[format].label}</span><span className="mt-0.5 block text-[11px] leading-4 text-stone-500">{formatDimensions[format].description}</span></button>)}</div><div className="mt-4 space-y-2"><button type="button" onClick={save} className="min-h-12 w-full rounded-xl border border-white/15">Сохранить snapshot</button><button type="button" onClick={download} className="min-h-12 w-full rounded-xl bg-amber-100 font-medium text-stone-950">{draft.format==="a4"?"Скачать PDF":"Скачать PNG"}</button></div></div>}
             {calculation.errors.length > 0 && <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-red-300">{calculation.errors.map((error)=><li key={error}>{error}</li>)}</ul>}
             {message && <p role="status" className="mt-4 text-xs text-amber-100">{message}</p>}

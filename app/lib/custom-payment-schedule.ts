@@ -28,6 +28,8 @@ export type BalancedCustomSchedule = {
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const MAX_CUSTOM_SCHEDULE_ROWS = 120;
+const MAX_PAYMENT_AMOUNT = Number.MAX_SAFE_INTEGER / 100;
 
 export function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -49,13 +51,18 @@ export function validateCustomSchedule(
 ): CustomScheduleValidation {
   const errors: string[] = [];
   const fingerprints = new Set<string>();
+  const ids = new Set<string>();
 
   if (rows.length === 0) errors.push("Добавьте хотя бы один этап платежа");
+  if (rows.length > MAX_CUSTOM_SCHEDULE_ROWS) errors.push(`Допустимо не более ${MAX_CUSTOM_SCHEDULE_ROWS} этапов`);
 
   rows.forEach((row, index) => {
+    if (!row.id || ids.has(row.id)) errors.push(`Этап ${index + 1} имеет некорректный идентификатор`);
+    ids.add(row.id);
     if (!row.label.trim()) errors.push(`Укажите название этапа ${index + 1}`);
     if (!isRealIsoDate(row.date)) errors.push(`Проверьте дату этапа ${index + 1}`);
-    if (!Number.isFinite(row.amount) || row.amount < 0) errors.push(`Сумма этапа ${index + 1} не может быть отрицательной`);
+    if (row.amount < 0) errors.push(`Сумма этапа ${index + 1} не может быть отрицательной`);
+    else if (!Number.isFinite(row.amount) || row.amount > MAX_PAYMENT_AMOUNT) errors.push(`Проверьте сумму этапа ${index + 1}`);
     const fingerprint = `${row.date}|${row.label.trim().toLocaleLowerCase("ru-RU")}`;
     if (fingerprints.has(fingerprint)) errors.push(`Этап ${index + 1} дублирует дату и назначение другого платежа`);
     fingerprints.add(fingerprint);
@@ -75,6 +82,7 @@ export function validateCustomSchedule(
     return { ...row, label: row.label.trim(), amount, cumulativeAmount };
   });
   const total = roundMoney(cumulativeAmount);
+  if (!Number.isSafeInteger(Math.round(total * 100))) errors.push("Итоговая сумма графика слишком велика");
   const difference = roundMoney(total - expectedTotal);
   if (Math.abs(difference) > 0.01) errors.push("Сумма этапов должна совпадать с ценой после скидки");
 

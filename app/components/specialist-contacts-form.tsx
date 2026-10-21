@@ -1,14 +1,18 @@
 "use client";
 
-import type { SpecialistContacts } from "../lib/specialist-contacts";
+import type { SpecialistContacts, SpecialistContactsMode } from "../lib/specialist-contacts";
 import { specialistContactsError } from "../lib/specialist-contacts";
 
 export function SpecialistContactsForm({
   value,
   onChange,
+  mode,
+  onModeChange,
 }: {
   value: SpecialistContacts;
   onChange: (value: SpecialistContacts) => void;
+  mode: SpecialistContactsMode;
+  onModeChange: (mode: SpecialistContactsMode) => void;
 }) {
   const error = specialistContactsError(value);
   const field = (key: keyof SpecialistContacts, label: string, options?: { autoComplete?: string; type?: string }) => (
@@ -28,14 +32,23 @@ export function SpecialistContactsForm({
   return (
     <fieldset className="space-y-3 rounded-xl border border-white/10 p-4">
       <legend className="px-2 text-sm font-medium text-stone-200">Контакты специалиста</legend>
-      <p className="text-xs leading-5 text-stone-500">Все поля необязательные и сохраняются только в snapshot этого документа.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {field("firstName", "Имя", { autoComplete: "given-name" })}
-        {field("lastName", "Фамилия", { autoComplete: "family-name" })}
+      <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1" role="radiogroup" aria-label="Показывать контакты специалиста">
+        {([[
+          "none", "Без контактов",
+        ], ["enabled", "Добавить контакты"]] as const).map(([nextMode, label]) => (
+          <button key={nextMode} type="button" role="radio" aria-checked={mode === nextMode} onClick={() => onModeChange(nextMode)} className={`min-h-11 rounded-md px-3 text-xs transition ${mode === nextMode ? "bg-amber-100 text-stone-950" : "text-stone-500 hover:text-stone-200"}`}>{label}</button>
+        ))}
       </div>
-      {field("agency", "Агентство недвижимости", { autoComplete: "organization" })}
-      {field("phone", "Телефон", { autoComplete: "tel", type: "tel" })}
-      {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
+      {mode === "enabled" ? <>
+        <p className="text-xs leading-5 text-stone-500">Все поля необязательные и сохраняются только в snapshot этого документа.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field("firstName", "Имя", { autoComplete: "given-name" })}
+          {field("lastName", "Фамилия", { autoComplete: "family-name" })}
+        </div>
+        {field("agency", "Агентство недвижимости", { autoComplete: "organization" })}
+        {field("phone", "Телефон", { autoComplete: "tel", type: "tel" })}
+        {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
+      </> : <p className="text-xs leading-5 text-stone-500">Контактный блок не попадёт в preview, PDF, PNG или snapshot.</p>}
     </fieldset>
   );
 }

@@ -3,10 +3,12 @@ import "server-only";
 import type { ProposalData } from "../components/proposal-context.tsx";
 import type { OnePageDraft } from "./one-page.ts";
 import { ApiRequestError, assertSafeJson } from "./api-security.ts";
+import { validateCustomSchedule, type EditablePayment } from "./custom-payment-schedule.ts";
 import { normalizeSpecialistContacts, specialistContactsError } from "./specialist-contacts.ts";
 
 const allowedMediaPath = /^\/(?:layouts|renders|project-renders)\/[a-zA-Z0-9._/-]+$/;
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+const paymentTypes = new Set(["initial", "regular-first", "top-up", "regular-second", "final"]);
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ApiRequestError("INVALID_REQUEST", 400);
@@ -42,13 +44,17 @@ function validContacts(value: unknown) {
     && !specialistContactsError(normalized);
 }
 
+function validContactsMode(value: unknown) {
+  return value === undefined || value === "none" || value === "enabled";
+}
+
 export function validateProposalData(value: unknown): ProposalData {
   assertSafeJson(value);
   const proposal = record(value);
   if (!validRoom(proposal.room) || (proposal.financingType !== "installment" && proposal.financingType !== "mortgage")) {
     throw new ApiRequestError("INVALID_REQUEST", 400);
   }
-  if (!validContacts(proposal.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
+  if (!validContactsMode(proposal.specialistContactsMode) || !validContacts(proposal.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
   if (proposal.financingType === "installment") {
     const installment = record(proposal.installment);
     if (![installment.listPrice, installment.discountPercent, installment.discountAmount, installment.discountedPrice, installment.initialPaymentPercent,
@@ -59,7 +65,18 @@ export function validateProposalData(value: unknown): ProposalData {
       const payment = record(row);
       if (typeof payment.id !== "string" || payment.id.length > 80 || typeof payment.date !== "string" || !isoDate.test(payment.date)
         || typeof payment.label !== "string" || payment.label.length > 160 || !finitePositive(payment.amount) && payment.amount !== 0
+        || !paymentTypes.has(String(payment.type))
         || typeof payment.cumulativeAmount !== "number" || !Number.isFinite(payment.cumulativeAmount)) throw new ApiRequestError("INVALID_REQUEST", 400);
+    }
+    if (proposal.scheduleMode === "custom") {
+      const custom = validateCustomSchedule(proposal.schedule.map((row) => ({
+        id: String(record(row).id),
+        date: String(record(row).date),
+        label: String(record(row).label),
+        amount: Number(record(row).amount),
+        type: record(row).type as EditablePayment["type"],
+      })), Number(installment.discountedPrice));
+      if (!custom.isValid) throw new ApiRequestError("INVALID_PAYMENT_SCHEDULE", 400);
     }
   } else {
     const mortgage = record(proposal.mortgage);
@@ -89,7 +106,7 @@ export function validateOnePageDraft(value: unknown): OnePageDraft {
   assertSafeJson(value);
   const draft = record(value);
   if (!validRoom(draft.room) || !finitePositive(draft.basePrice)) throw new ApiRequestError("INVALID_REQUEST", 400);
-  if (!validContacts(draft.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
+  if (!validContactsMode(draft.specialistContactsMode) || !validContacts(draft.specialistContacts)) throw new ApiRequestError("INVALID_CONTACTS", 400);
   if (draft.layoutPath !== null && (typeof draft.layoutPath !== "string" || !allowedMediaPath.test(draft.layoutPath) || draft.layoutPath.includes(".."))) {
     throw new ApiRequestError("INVALID_MEDIA_PATH", 400);
   }

@@ -13,12 +13,16 @@ const templates: OnePageTemplate[] = ["ivory", "obsidian", "mission-control", "i
 const draft = (template: OnePageTemplate): OnePageDraft => ({
   room: structuredClone(room), basePrice: room.price, individualPrice: null, discount: { mode: "percent", value: 1 },
   initialPaymentMode: "percent", initialPaymentValue: 15, paymentMode: "custom", calculatedSchedule: [],
-  customPayments: [{ id: "rest", date: "2027-06-30", label: "Остаток", amount: 13_294_858.5 }],
+  customPayments: [
+    { id: "initial", date: "2026-10-21", label: "Первоначальный взнос", amount: 2_346_151.5, type: "initial" },
+    { id: "rest", date: "2027-06-30", label: "Остаток", amount: 13_294_858.5, type: "top-up" },
+  ],
   customScheduleBalanceMode: "auto", customScheduleBalancerId: "rest",
   specialConditions: "Тест", guaranteedIncome: template === "ivory" ? 1_000_000 : null,
   guaranteedIncomeSource: template === "ivory" ? "Подтверждённая программа" : "",
   managerName: "Анна", managerPhone: "+7 900 000-00-00", scenarioLabel: "Индивидуальные условия",
   specialistContacts: { firstName: "Анна", lastName: "Петрова", agency: "Агентство недвижимости", phone: "+7 900 000-00-00" },
+  specialistContactsMode: "enabled",
   template, format: "a4", layoutPath: "/layouts/page-40.webp", renderPaths: ["/renders/room-25-9/01.jpg"],
   projectRenderPaths: selectProjectRenders("437п:0").map((item) => item.imagePath),
 });
@@ -45,7 +49,35 @@ test("specialist contacts are optional and frozen inside a One Page snapshot", (
 
   const legacy = draft("ivory");
   delete legacy.specialistContacts;
+  delete legacy.specialistContactsMode;
   assert.equal(createOnePageSnapshot(legacy).contentSnapshot.specialistContacts, undefined);
+});
+
+test("contacts are disabled by default without creating an empty document block", () => {
+  const value = draft("ivory");
+  value.specialistContactsMode = "none";
+  value.specialistContacts = { firstName: "Скрыто", lastName: "", agency: "", phone: "" };
+  const snapshot = createOnePageSnapshot(value);
+  assert.equal(snapshot.contentSnapshot.specialistContactsMode, "none");
+  assert.equal(snapshot.contentSnapshot.specialistContacts, undefined);
+  assert.equal(snapshot.commercialSnapshot.isBalanced, true);
+});
+
+test("free schedule accepts arbitrary dates without COSMOS control top-up", () => {
+  const value = draft("obsidian");
+  value.individualPrice = 10_000_000;
+  value.discount = { mode: "percent", value: 0 };
+  value.customPayments = [
+    { id: "first", date: "2027-03-14", label: "Первый этап", amount: 2_000_000, type: "initial" },
+    { id: "middle", date: "2027-09-03", label: "Произвольный платёж", amount: 1_000_000, type: "regular-first" },
+    { id: "balance", date: "2029-02-11", label: "Остаток", amount: 0, type: "top-up" },
+  ];
+  value.customScheduleBalancerId = "balance";
+  const result = calculateOnePage(value);
+  assert.equal(result.isBalanced, true);
+  assert.equal(result.payments[2].amount, 7_000_000);
+  assert.equal(result.payments.some((payment) => payment.date === "2027-06-30"), false);
+  assert.equal(result.payments.some((payment) => /50%/.test(payment.label)), false);
 });
 
 test("invalid specialist phone blocks One Page persistence and export calculation", () => {
@@ -67,15 +99,19 @@ test("invalid totals and unconfirmed guaranteed income are rejected", () => {
   assert.ok(result.errors.some((error) => error.includes("подтверждённая сумма")));
 });
 
-test("auto-balanced One Page schedule follows initial payment changes", () => {
+test("free One Page schedule ignores standard down-payment controls and follows deal price", () => {
   const value = draft("ivory");
-  value.customPayments[0].amount = 1;
+  value.customPayments[1].amount = 1;
   const atFifteen = calculateOnePage(value);
-  assert.equal(atFifteen.payments[0].amount, atFifteen.dealPrice - atFifteen.initialPayment);
+  assert.equal(atFifteen.payments[1].amount, atFifteen.dealPrice - atFifteen.initialPayment);
   value.initialPaymentValue = 20;
   const atTwenty = calculateOnePage(value);
-  assert.equal(atTwenty.payments[0].amount, atTwenty.dealPrice - atTwenty.initialPayment);
-  assert.notEqual(atTwenty.payments[0].amount, atFifteen.payments[0].amount);
+  assert.equal(atTwenty.payments[1].amount, atFifteen.payments[1].amount);
+  value.individualPrice = 15_000_000;
+  value.discount = { mode: "percent", value: 0 };
+  const repriced = calculateOnePage(value);
+  assert.equal(repriced.payments[0].amount, atFifteen.payments[0].amount);
+  assert.equal(repriced.payments[1].amount, 15_000_000 - atFifteen.payments[0].amount);
 });
 
 test("room 437 individual price is the single source for down payment and calculated schedule", () => {
@@ -133,6 +169,7 @@ test("switching a calculated schedule to custom keeps manual rows and auto-balan
   value.individualPrice = 15_000_000;
   value.discount = { mode: "percent", value: 0 };
   value.customPayments = [
+    { id: "initial", date: "2026-10-21", label: "Первоначальный взнос", amount: 2_250_000, type: "initial" },
     { id: "manual", date: "2027-01-01", label: "Зафиксированный этап", amount: 1_000_000, type: "regular-first" },
     { id: "final", date: "2028-01-01", label: "Финальный платёж", amount: 1, type: "final" },
   ];
@@ -140,21 +177,23 @@ test("switching a calculated schedule to custom keeps manual rows and auto-balan
 
   const result = calculateOnePage(value);
 
-  assert.equal(result.payments[0].amount, 1_000_000);
-  assert.equal(result.payments[1].amount, 11_750_000);
-  assert.equal(result.scheduledTotal + result.initialPayment, result.dealPrice);
+  assert.equal(result.payments[0].amount, 2_250_000);
+  assert.equal(result.payments[1].amount, 1_000_000);
+  assert.equal(result.payments[2].amount, 11_750_000);
+  assert.equal(result.scheduledTotal, result.dealPrice);
   assert.equal(result.isBalanced, true);
 });
 
-test("snapshot preserves synchronized individual-price terms", () => {
+test("snapshot preserves free-schedule manual stages after an individual-price change", () => {
   const value = draft("obsidian");
   value.individualPrice = 15_000_000;
   value.discount = { mode: "percent", value: 0 };
   const snapshot = createOnePageSnapshot(value, "room-437-custom-price", "2026-10-21T00:00:00.000Z");
 
   assert.equal(snapshot.commercialSnapshot.dealPrice, 15_000_000);
-  assert.equal(snapshot.commercialSnapshot.initialPayment, 2_250_000);
-  assert.equal(snapshot.commercialSnapshot.scheduledTotal + snapshot.commercialSnapshot.initialPayment, 15_000_000);
+  assert.equal(snapshot.commercialSnapshot.initialPayment, 2_346_151.5);
+  assert.equal(snapshot.commercialSnapshot.payments.find((payment) => payment.id === "rest")?.amount, 12_653_848.5);
+  assert.equal(snapshot.commercialSnapshot.scheduledTotal, 15_000_000);
 });
 
 test("controlled project render selection is stable, unique and category-balanced", () => {
