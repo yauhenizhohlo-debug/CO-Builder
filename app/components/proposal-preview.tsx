@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getLayoutById } from "../data/layouts";
 import { getRenderSetById } from "../data/render-sets";
@@ -9,6 +9,7 @@ import { useProposalContext } from "./proposal-context";
 import type { ProposalData } from "./proposal-context";
 import { SpecialistContactsForm } from "./specialist-contacts-form";
 import { emptySpecialistContacts, hasSpecialistContacts, normalizeSpecialistContacts, specialistContactsEnabled, specialistContactsError, specialistFullName, type SpecialistContactsMode } from "../lib/specialist-contacts";
+import { canShareProposalPdf, downloadProposalPdf, shareProposalPdf } from "../lib/download-proposal-pdf";
 
 const currency = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -59,8 +60,12 @@ export function ProposalPreview({
   const proposalData = importedProposalData ?? context.proposalData;
   const [isOpen, setIsOpen] = useState(false);
   const [snapshotMessage, setSnapshotMessage] = useState("");
+  const [pdfMessage, setPdfMessage] = useState("");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [generatedPdf, setGeneratedPdf] = useState<{ blob: Blob; filename: string } | null>(null);
   const [specialistContacts, setSpecialistContacts] = useState(emptySpecialistContacts);
   const [specialistContactsMode, setSpecialistContactsMode] = useState<SpecialistContactsMode>("none");
+  const proposalPagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const open = () => {
@@ -108,42 +113,35 @@ export function ProposalPreview({
   const contactsEnabled = specialistContactsEnabled(specialistContactsMode, contacts);
   const contactsError = contactsEnabled ? specialistContactsError(contacts) : null;
 
-  const handlePrint = async () => {
-    if (contactsError) return;
-    const proposal = document.querySelector<HTMLElement>(".proposal-print-root");
-    const images = proposal ? Array.from(proposal.querySelectorAll("img")) : [];
-
-    await Promise.all(
-      images.map((image) => {
-        if (image.complete) {
-          return image.decode?.().catch(() => undefined) ?? Promise.resolve();
-        }
-
-        return new Promise<void>((resolve) => {
-          image.addEventListener("load", () => resolve(), { once: true });
-          image.addEventListener("error", () => resolve(), { once: true });
-        });
-      }),
-    );
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-
-    const previousTitle = document.title;
+  const handleDownloadPdf = async () => {
+    if (contactsError || !proposalPagesRef.current || isExportingPdf) return;
     const roomNumber = room?.roomNumber.replace(/^№/, "") ?? "номер";
-    const pv = displayedInitialPercent;
+    const financingLabel = mortgage ? "Ипотека" : "Рассрочка";
+    const filename = `${financingLabel} номер ${roomNumber} ПВ ${formatPercent(displayedInitialPercent)}%.pdf`;
+    setIsExportingPdf(true);
+    setPdfMessage("Формируем PDF…");
+    setGeneratedPdf(null);
+    try {
+      const result = await downloadProposalPdf(proposalPagesRef.current, filename);
+      setGeneratedPdf({ blob: result.blob, filename });
+      setPdfMessage("PDF скачан: 3 страницы A4");
+    } catch (error) {
+      console.error("proposal_pdf_export_failed", error);
+      setPdfMessage("Не удалось сформировать PDF. Проверьте соединение и повторите попытку.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
-    document.title = `КП Cosmos №${roomNumber} ПВ ${pv}%`;
-
-    const restoreTitle = () => {
-      document.title = previousTitle;
-      window.removeEventListener("afterprint", restoreTitle);
-    };
-
-    window.addEventListener("afterprint", restoreTitle);
-    window.print();
-    setTimeout(restoreTitle, 1500);
+  const handleSharePdf = async () => {
+    if (!generatedPdf) return;
+    try {
+      await shareProposalPdf(generatedPdf.blob, generatedPdf.filename);
+      setPdfMessage("PDF отправлен через системное меню");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setPdfMessage("Не удалось открыть системное меню. PDF уже сохранён на устройстве.");
+    }
   };
 
   const handleSaveSnapshot = async () => {
@@ -199,22 +197,24 @@ export function ProposalPreview({
                   <button type="button" disabled={Boolean(contactsError)} onClick={handleSaveSnapshot} className="relative z-10 rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-40">
                     Сохранить snapshot
                   </button>
-                  <button type="button" disabled={Boolean(contactsError)} onClick={handlePrint} className="relative z-10 rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40">
-                    Сохранить PDF
+                  <button type="button" disabled={Boolean(contactsError) || isExportingPdf} onClick={handleDownloadPdf} aria-busy={isExportingPdf} className="relative z-10 min-w-[118px] rounded-lg bg-amber-100 px-4 py-2.5 text-xs font-medium text-stone-950 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40">
+                    {isExportingPdf ? "Создание PDF…" : "Скачать PDF"}
                   </button>
+                  {generatedPdf && canShareProposalPdf(generatedPdf.blob, generatedPdf.filename) ? <button type="button" onClick={handleSharePdf} className="relative z-10 rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">Поделиться PDF</button> : null}
                   <button type="button" onClick={() => setIsOpen(false)} className="rounded-lg border border-white/15 px-4 py-2.5 text-xs text-stone-300 hover:border-white/30">
                     Закрыть
                   </button>
                 </div>
               </div>
               {snapshotMessage ? <p role="status" className="mx-auto mt-2 max-w-[794px] text-xs text-amber-100">{snapshotMessage}</p> : null}
+              {pdfMessage ? <p role="status" className="mx-auto mt-2 max-w-[794px] text-xs text-amber-100">{pdfMessage}</p> : null}
             </div>
 
-            <div className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
+            <div ref={proposalPagesRef} className="proposal-pages mx-auto flex max-w-[794px] flex-col gap-6 py-6">
               <section className="proposal-controls rounded-xl border border-white/10 bg-stone-900 p-5 text-stone-100">
                 <SpecialistContactsForm value={specialistContacts} onChange={setSpecialistContacts} mode={specialistContactsMode} onModeChange={setSpecialistContactsMode} />
               </section>
-              <article className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+              <article data-pdf-page="1" className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
                 <header className="border-b border-[#cec5b6] pb-6">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
@@ -260,7 +260,7 @@ export function ProposalPreview({
                 <PageFooter page={1} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
+              <article data-pdf-page="2" className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#f4f0e8] p-10 text-[#191713] shadow-2xl sm:p-14">
                 <header className="flex items-end justify-between border-b border-[#cec5b6] pb-5">
                   <div>
                     <p className="text-[10px] font-semibold tracking-[0.34em] text-[#7d6748]">COSMOS BLACK SEA</p>
@@ -429,7 +429,7 @@ export function ProposalPreview({
                 <PageFooter page={2} />
               </article>
 
-              <article className="proposal-page flex min-h-[1123px] flex-col bg-[#151310] p-10 text-stone-100 shadow-2xl sm:p-14">
+              <article data-pdf-page="3" className="proposal-page flex min-h-[1123px] flex-col overflow-hidden bg-[#151310] p-10 text-stone-100 shadow-2xl sm:p-14">
                 <header className="flex items-end justify-between border-b border-white/15 pb-6">
                   <div>
                     <p className="text-[10px] tracking-[0.34em] text-[#c5a97e]">COSMOS BLACK SEA</p>

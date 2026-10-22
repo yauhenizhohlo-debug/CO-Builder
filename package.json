@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:mortgage": "node --experimental-strip-types --test app/lib/calculate-tranche-mortgage.test.ts",
     "test:integration": "node --experimental-strip-types --test app/lib/validate-imported-context.test.ts",
-    "test:one-page": "node --conditions=react-server --experimental-strip-types --test app/lib/price-overrides.test.ts app/lib/one-page.test.ts app/lib/custom-payment-schedule.test.ts app/lib/proposal-snapshot.test.ts app/lib/specialist-contacts.test.ts app/lib/persistence.test.ts app/lib/admin-auth.test.ts app/lib/api-security.test.ts",
+    "test:one-page": "node --conditions=react-server --experimental-strip-types --test app/lib/price-overrides.test.ts app/lib/one-page.test.ts app/lib/custom-payment-schedule.test.ts app/lib/proposal-snapshot.test.ts app/lib/specialist-contacts.test.ts app/lib/persistence.test.ts app/lib/admin-auth.test.ts app/lib/api-security.test.ts app/lib/download-proposal-pdf.test.ts",
     "test": "npm run test:mortgage && npm run test:integration && npm run test:one-page"
   },
   "dependencies": {
